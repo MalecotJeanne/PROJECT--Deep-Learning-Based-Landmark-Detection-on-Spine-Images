@@ -41,6 +41,7 @@ def train_model(dataset, model, chkpt_dir, config, device, logger):
     )
 
     # Create the data loaders
+    logger.info("Creating data loaders...")
     train_loader = DataLoader(trainset, batch_size=config["batch_size"], shuffle=True)
     val_loader = DataLoader(valset, batch_size=config["batch_size"], shuffle=False)
 
@@ -58,6 +59,7 @@ def train_model(dataset, model, chkpt_dir, config, device, logger):
     model.to(device)
 
     # training
+    logger.info("Starting Training")
 
     for epoch in range(start_epoch, n_epochs):
         model.train()
@@ -105,4 +107,4 @@ def train_model(dataset, model, chkpt_dir, config, device, logger):
             os.makedirs(chkpt_dir)
         torch.save(checkpoint, os.path.join(chkpt_dir, f"model_{epoch}.pt"))
 
-    logger.info("Finished Training")
+    logger.succes("Finished Training")

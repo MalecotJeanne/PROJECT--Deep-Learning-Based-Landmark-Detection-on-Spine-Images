@@ -7,7 +7,7 @@
 import torch
 import torch.nn as nn
 
-from monai.networks.blocks import SEResNetBottleneck, ResidualUnit
+from monai.networks.blocks import SEResNetBottleneck
 from monai.networks.nets import HighResBlock
 
 

@@ -1,9 +1,7 @@
 from models.hrnet import HRNet
-from models.resnet import ResNet
 
 models = {
     "hrnet": HRNet,
-    "resnet": ResNet
 }
 
 def init_model(name, *args, **kwargs):

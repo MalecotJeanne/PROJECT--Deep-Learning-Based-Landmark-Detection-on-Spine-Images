@@ -54,9 +54,17 @@ def main():
     if not os.path.exists(args.logs_dir):
         os.makedirs(args.logs_dir)
     log_filename = f"{args.model}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.log"
-    logger.add(os.path.join(args.logs_dir, log_filename))
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
-    logger.info(f"Using GPU device(s): {args.gpu_devices}")
+
+    # logger header
+    with open(os.path.join(args.logs_dir, log_filename), "w") as log_file:
+        log_file.write("==========================================\n")
+        log_file.write("Logs for spine landmark detection\n")
+        log_file.write("--- Author: Jeanne Malecot         \n")
+        log_file.write(f"--- Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+        log_file.write("==========================================\n")
+        log_file.write("\n")
+
+    logger.add(os.path.join(args.logs_dir, log_filename), mode="a")
 
     root_dir = args.root_dir
     path_data = os.path.join(root_dir, "data")
@@ -74,14 +82,18 @@ def main():
         return
 
     # Load the config file
+    logger.info("Loading config file...")
     config = load_config(args.config_dir)
+    logger.success("Config file {} loaded successfully".format(args.config_dir))
 
     if args.phase == "train":
+        logger.info("Loading data for training...")
         path_data = os.path.join(path_data, "training")
         path_labels = os.path.join(path_labels, "training")
         data_dict = load_data(path_data, path_labels)
 
     elif args.phase == "test":
+        logger.info("Loading data for testing...")
         path_data = os.path.join(path_data, "test")
         path_labels = os.path.join(path_labels, "test")
         data_dict = load_data(path_data, path_labels)
@@ -90,26 +102,31 @@ def main():
         logger.error("Invalid phase. Choose between 'train' or 'test'.")
         return
 
+    logger.success("Data loaded successfully!")
+
     # Create dataset and dataloader
     transforms = Compose(
         [
             LoadImaged(keys=["image"], image_only=True),
             EnsureChannelFirstd(keys=["image"]),
-            ResizeWithLandmarksd(spatial_size=(512, 1024), mode = 'bilinear', keys=["image", "landmarks"]), #FIXME: find an optimal spatial size for the images, and put it in a config
+            ResizeWithLandmarksd(
+                spatial_size=(512, 1024), mode="bilinear", keys=["image", "landmarks"]
+            ),  # FIXME: find an optimal spatial size for the images, and put it in a config
         ]
-    )#TODO: define the transforms in a specific file
-    logger.info("Creating dataset...")
+    )  # TODO: define the transforms in a specific file
     dataset = Dataset(data=data_dict, transform=transforms)
-
-    # Print the number of samples in the training and test sets
-    logger.info(f"Number of samples in the dataset: {len(dataset)}")
 
     # Load the model
     model = init_model(args.model)
 
     if args.phase == "train":
+        # Set the device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
+        logger.info(f"Using GPU device(s): {args.gpu_devices}")
         model.to(device)
+        logger.info(f"Using device: {device} for training")
+
         # Train the model
         chkpt_dir = args.chkpt_dir
         train_model(dataset, model, chkpt_dir, config, device, logger)

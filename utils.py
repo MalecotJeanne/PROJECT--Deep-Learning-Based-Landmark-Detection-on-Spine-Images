@@ -57,7 +57,7 @@ def load_labels_mat(dir_list):
         if (
             labels[-1].shape[0] != 68
         ):  # TODO: explain in report why, +eventually add logger
-            # Number of landmarks can be less than 68
+            # Number of landmarks can be != than 68
             orig_size = labels[-1].shape[0]
             labels[-1] = torch.cat([labels[-1], torch.zeros(68 - orig_size, 2)], dim=0)
 
