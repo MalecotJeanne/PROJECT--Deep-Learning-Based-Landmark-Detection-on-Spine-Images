@@ -2,5 +2,4 @@ Ressources/
 logs/
 Report/
 __pycache__/
-images_train/
-images_test/
+images/

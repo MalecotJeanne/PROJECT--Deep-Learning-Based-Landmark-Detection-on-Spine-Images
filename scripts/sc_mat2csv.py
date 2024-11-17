@@ -31,23 +31,27 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# Load the .mat files
-mat_dir = args.mat_dir
-csv_dir = args.csv_dir
+def main():
+    # Load the .mat files
+    mat_dir = args.mat_dir
+    csv_dir = args.csv_dir
 
-if not os.path.exists(csv_dir):
-    os.makedirs(csv_dir)
+    if not os.path.exists(csv_dir):
+        os.makedirs(csv_dir)
 
-# select only the .mat files
-labels_mat = [
-    os.path.join(mat_dir, f) for f in os.listdir(mat_dir) if f.endswith(".mat")
-]
-labels = load_labels_mat(labels_mat)
+    # select only the .mat files
+    labels_mat = [
+        os.path.join(mat_dir, f) for f in os.listdir(mat_dir) if f.endswith(".mat")
+    ]
+    labels = load_labels_mat(labels_mat)
 
-print(f"Found {len(labels)} .mat files")
+    print(f"Found {len(labels)} .mat files")
 
-for i, label in enumerate(tqdm(labels)):
-    df = pd.DataFrame(label)
-    name_mat = labels_mat[i].split("\\")[-1]
-    name_csv = name_mat.split(".")[0] + ".csv"
-    df.to_csv(os.path.join(csv_dir, name_csv), index=False, header=False)
+    for i, label in enumerate(tqdm(labels)):
+        df = pd.DataFrame(label)
+        name_mat = labels_mat[i].split("\\")[-1]
+        name_csv = name_mat.split(".")[0] + ".csv"
+        df.to_csv(os.path.join(csv_dir, name_csv), index=False, header=False)
+
+if __name__ == "__main__":
+    main()
