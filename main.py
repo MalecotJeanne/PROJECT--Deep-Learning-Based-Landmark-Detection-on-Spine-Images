@@ -13,7 +13,7 @@ from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 
 from models import init_model
 from transforms import ResizeWithLandmarksd
-from train import train_model
+from training import train_model
 from utils import load_config, load_data
 
 # from test import test_model
@@ -28,10 +28,10 @@ parser.add_argument(
     "--root_dir", default="boostnet_labeldata/", type=str, help="data path"
 )
 parser.add_argument(
-    "--save_dir", default="results", type=str, help="path to save the results"
+    "--results_dir", default="Results", type=str, help="path to save the results"
 )
 parser.add_argument(
-    "--logs_dir", default="logs", type=str, help="path to save the logs"
+    "--logs_dir", default=None, type=str, help="path to save the logs"
 )
 parser.add_argument(
     "--chkpt_dir", default=None, type=str, help="path of the checkpoint to use"
@@ -51,12 +51,23 @@ def main():
     TODO: Docstring
     """
     # check if the logs directory exists
-    if not os.path.exists(args.logs_dir):
+    results_dir = args.results_dir
+    execution_name = f"{args.model}_{args.phase}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+    results_dir = os.path.join(results_dir, execution_name)
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    logs_dir = args.logs_dir
+    if logs_dir is None:
+        logs_dir = results_dir
+    elif not os.path.exists(args.logs_dir):
         os.makedirs(args.logs_dir)
+
     log_filename = f"{args.model}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.log"
+    logs_filepath = os.path.join(logs_dir, log_filename)
 
     # logger header
-    with open(os.path.join(args.logs_dir, log_filename), "w") as log_file:
+    with open(logs_filepath, "w") as log_file:
         log_file.write("==========================================\n")
         log_file.write("Logs for spine landmark detection\n")
         log_file.write("--- Author: Jeanne Malecot         \n")
@@ -64,7 +75,7 @@ def main():
         log_file.write("==========================================\n")
         log_file.write("\n")
 
-    logger.add(os.path.join(args.logs_dir, log_filename), mode="a")
+    logger.add(logs_filepath, mode="a")
 
     root_dir = args.root_dir
     path_data = os.path.join(root_dir, "data")
@@ -110,7 +121,7 @@ def main():
             LoadImaged(keys=["image"], image_only=True),
             EnsureChannelFirstd(keys=["image"]),
             ResizeWithLandmarksd(
-                spatial_size=(512, 1024), mode="bilinear", keys=["image", "landmarks"]
+                spatial_size=(1024, 512), mode="bilinear", keys=["image", "landmarks"]
             ),  # FIXME: find an optimal spatial size for the images, and put it in a config
         ]
     )  # TODO: define the transforms in a specific file
@@ -129,7 +140,13 @@ def main():
 
         # Train the model
         chkpt_dir = args.chkpt_dir
-        train_model(dataset, model, chkpt_dir, config, device, logger)
+        if chkpt_dir is None:
+            chkpt_dir = os.path.join(results_dir, "checkpoints")
+        if not os.path.exists(chkpt_dir):
+            os.makedirs(chkpt_dir)
+        train_model(
+            dataset, model, chkpt_dir, results_dir, config, device, logs_filepath
+        )
 
     if args.phase == "test":
         # Test the model

@@ -28,7 +28,8 @@ class HRNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(64, momentum=0)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(64, momentum=0)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax(dim=-1)
 
         # using bottleneck implementation from MONAI -> the expension  is always 4 in this class.
         self.bottleneck1 = SEResNetBottleneck(
@@ -209,21 +210,17 @@ class HRNet(nn.Module):
                 x_list.append(y_list[i])
         y_list = self.stage4(x_list)
 
-        # x = self.final_layer(y_list[0])
-        # return x
-
         x = self.final_layer(y_list[0])
-        batch_size, num_landmarks, height, width = x.shape  # [B, C, H, W]
+        
+        #convert into a probability map, flatten (last two dims) it and apply softmax
+        H,W = x.size()[-2:]
+        x = x.view(x.size(0), x.size(1), -1)
+        x = self.softmax(x)
+        x = x.view(x.size(0), x.size(1), H, W)
 
-        x_flat = x.view(batch_size, num_landmarks, -1)  # [B, C, H*W]
-        max_indices = x_flat.argmax(dim=2)
+        return x
 
-        y_coords = max_indices // width
-        x_coords = max_indices % width
-
-        landmarks = torch.stack((x_coords, y_coords), dim=2).float()
-
-        return landmarks
+        
 
 
 class HighResModule(nn.Module):
@@ -246,7 +243,7 @@ class HighResModule(nn.Module):
         self.out_channels = out_channels
         self.spatial_dims = spatial_dims
         self.multi_scale_output = multi_scale_output
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
         self.branches = nn.ModuleList()
         self.fuse_layers = nn.ModuleList()

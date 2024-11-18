@@ -19,7 +19,6 @@ def save_images(
     save_dir,
     landmarks_dir=None,
     bounding_boxes_dir=None,
-    load_image=True,
 ):
     """
     Function to save images with the corresponding landmarks and/or bounding boxes, for visualization purposes.
@@ -28,19 +27,16 @@ def save_images(
         save_dir (str): path to save the images
         landmarks_dir (str): path to the landmarks (default: None)
         bounding_boxes_dir (str): path to the bounding boxes (default: None)
-        load_image (bool): whether to load the images from the image_dir (in the case it is a path) or not (default: True)
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     n_images = len(os.listdir(image_dir)) if load_image else len(image_dir)
 
-    for i in tqdm(n_images):
-        if load_image:
-            image_name = os.listdir(image_dir)[i]
-            image_path = os.path.join(image_dir, image_name)
-            image = cv2.imread(image_path)
-        else:
-            image = image_dir[i]
+    for i in tqdm(range(n_images)):
+        image_name = os.listdir(image_dir)[i]
+        image_path = os.path.join(image_dir, image_name)
+        image = cv2.imread(image_path)
+        
 
         if landmarks_dir:
             landmarks_name = image_name.split(".")[0] + ".csv"
@@ -103,6 +99,7 @@ def save_images(
                         2,
                     )
 
+            
             save_path = os.path.join(save_dir, image_name)
             cv2.imwrite(save_path, image)
 

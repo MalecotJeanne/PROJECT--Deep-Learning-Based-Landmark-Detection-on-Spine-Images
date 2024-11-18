@@ -1,5 +1,5 @@
 """
-docstring
+TODO: docstring
 """
 
 import numpy as np
@@ -7,6 +7,7 @@ import os
 import glob
 import yaml
 import torch
+import cv2
 
 from scipy.io import loadmat
 
@@ -71,3 +72,23 @@ def load_config(config_dir):
     with open(config_dir, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
     return config
+
+
+def save_images(images, save_dir, basename="image"):
+    """
+    Save the images in the given directory
+    """
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    n_images = len(images)
+    images_copy = images.clone()
+    for i in range(n_images):
+        image = images_copy[i].detach().cpu().numpy()
+        # map the values to [0, 255]
+        image = image - np.min(image)
+        image = (image / np.max(image)) * 255
+        save_path = os.path.join(save_dir, f"{basename}_{i}.jpg")
+        # save the image with cmap jet
+        cv2.imwrite(
+            save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
+        )
