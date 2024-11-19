@@ -21,10 +21,16 @@ parser.add_argument(
     "--landmarks_dir", default="landmarks/", type=str, help="landmarks path"
 )
 parser.add_argument(
-    "--save_dir", default="bounding_boxes/", type=str, help="path to save the bounding boxes"
+    "--save_dir",
+    default="bounding_boxes/",
+    type=str,
+    help="path to save the bounding boxes",
 )
-
+parser.add_argument(
+    "--alpha", default=1.3, type=float, help="dilation factor for the bounding box"
+)
 args = parser.parse_args()
+
 
 def main():
     landmarks_dir = args.landmarks_dir
@@ -41,14 +47,19 @@ def main():
             with open(input_file, mode="r") as file:
                 reader = csv.reader(file)
                 landmarks = [(float(row[0]), float(row[1])) for row in reader]
-            
+
             if len(landmarks) % 4 != 0:
-                raise ValueError(f"File {input_file} has an invalid number of landmarks (not a multiple of 4).")
-            
+                raise ValueError(
+                    f"File {input_file} has an invalid number of landmarks (not a multiple of 4)."
+                )
+
             with open(output_file, mode="w", newline="") as file:
                 writer = csv.writer(file)
                 for i in range(0, len(landmarks), 4):
-                    box = landmarks[i:i+2] + [landmarks[i+3], landmarks[i+2]] # clockwise
+                    box = landmarks[i : i + 2] + [
+                        landmarks[i + 3],
+                        landmarks[i + 2],
+                    ]  # clockwise
                     center, angle, width, height = make_rectangle(box)
                     # create the bounding box
                     # new_box = [
@@ -57,14 +68,15 @@ def main():
                     #     (center[0] - width / 2 * math.cos(angle) + height / 2 * math.sin(angle), center[1] - width / 2 * math.sin(angle) - height / 2 * math.cos(angle)),
                     #     (center[0] + width / 2 * math.cos(angle) + height / 2 * math.sin(angle), center[1] + width / 2 * math.sin(angle) - height / 2 * math.cos(angle))
                     # ]
-                    # row = [coord for pair in new_box for coord in pair] 
+                    # row = [coord for pair in new_box for coord in pair]
                     row = [center[0], center[1], angle, width, height]
                     writer.writerow(row)
 
-def make_rectangle (box):
+
+def make_rectangle(box):
     """
     Function to convert a list of 4 points into a rectangle (eventually rotated)
-    Input: 
+    Input:
     box: list of 4 points [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] (clockwise)
     Output:
     center: tuple (x, y) of the center of the rectangle
@@ -84,14 +96,30 @@ def make_rectangle (box):
     y23 = (box[2][1] + box[1][1]) / 2
     angle = math.atan2(y23 - y14, x23 - x14)
 
-    # get the width and height of the box
+    # get the coordinates of the box after rotation of -angle
+    new_box = []
+    rotation_matrix = [
+        [math.cos(-angle), -math.sin(-angle)],
+        [math.sin(-angle), math.cos(-angle)],
+    ]
+    for coord in box:
+        x = coord[0] - center[0]
+        y = coord[1] - center[1]
+        new_x = rotation_matrix[0][0] * x + rotation_matrix[0][1] * y
+        new_y = rotation_matrix[1][0] * x + rotation_matrix[1][1] * y
+        new_box.append((new_x, new_y))
+
+    # get the width and height of the new box
+    x = [coord[0] for coord in new_box]
+    y = [coord[1] for coord in new_box]
     width = max(x) - min(x)
     height = max(y) - min(y)
-    #apply a coefficient to the width and height to make the bounding box larger
-    width *= 1.5
-    height *= 1.5
+    # apply a coefficient to the width and height to make the bounding box larger
+    width *= args.alpha
+    height *= args.alpha
 
     return center, angle, width, height
+
 
 if __name__ == "__main__":
     main()

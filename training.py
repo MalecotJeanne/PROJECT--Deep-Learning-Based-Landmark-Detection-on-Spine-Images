@@ -190,6 +190,10 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_loss.pt"))
             best_val_loss = val_loss
 
+        #empty cuda cache
+        torch.cuda.empty_cache()
+
+
     # Save the last model checkpoint
     checkpoint = {
         "epoch": epoch,
