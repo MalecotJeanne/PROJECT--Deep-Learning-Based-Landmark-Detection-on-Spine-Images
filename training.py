@@ -74,7 +74,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
     # Init the wandb logger
     experiment_name = os.path.basename(log_path).split(".")[0]
-    wandb.init(project=experiment_name, config=config)
+    wandb.init(project="PRIM-project", config=config)
+    wandb.run.name = experiment_name
 
     # Split the dataset into training and validation sets
     train_size = config["train"]["train_size"]
