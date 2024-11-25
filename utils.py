@@ -84,11 +84,46 @@ def save_images(images, save_dir, basename="image"):
     images_copy = images.clone()
     for i in range(n_images):
         image = images_copy[i].detach().cpu().numpy()
-        # map the values to [0, 255]
-        image = image - np.min(image)
-        image = (image / np.max(image)) * 255
+        image = normalize_image(image)
         save_path = os.path.join(save_dir, f"{basename}_{i}.jpg")
         # save the image with cmap jet
         cv2.imwrite(
             save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
         )
+
+def normalize_image(image): 
+    """
+    map the values to [0, 255]
+    """
+    image = image - np.min(image)
+    image = (image / np.max(image)) * 255
+    return image
+
+
+def has_n_landmarks(labels, num_landmarks):
+    """
+    Return the indices of the data and labels that have the expected number of landmarks
+    """
+    indices = []
+    for i in range(len(labels)):
+        if labels[i].shape[0] == num_landmarks:
+            indices.append(i)
+    return indices
+
+def get_left_landmarks(landmarks):
+    """
+    Return the coordinates of the left landmarks (odd lines of the landmarks array)
+    """
+    return landmarks[::2]
+
+def get_right_landmarks(landmarks):
+    """
+    Return the coordinates of the right landmarks (even lines of the landmarks array)
+    """
+    return landmarks[1::2]
+
+def get_middle_line(left_ld, right_ld):
+    """
+    Return the middle line between the left and right landmarks
+    """
+    return (left_ld + right_ld) / 2

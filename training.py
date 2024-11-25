@@ -16,7 +16,7 @@ root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(root_folder_path)
 
 from models.utils import hm2ld
-from utils import save_images
+from utils import save_images, normalize_image
 from losses import DistanceLoss, AdaptiveWingLoss
 
 
@@ -169,13 +169,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}"),
             basename="ld",
         )
-        # save heatmaps in wandb 
+        # save normalized heatmaps in wandb 
         for i in range(len(outputs[-1])):
             wandb.log(
                 {
                     "training_heatmaps": [
                         wandb.Image(
-                            outputs[-1][i].cpu().detach().numpy(),
+                            normalize_image(outputs[-1][i].cpu().detach().numpy()),
                             caption=f"heatmap_{i}"
                         )
                     ]
@@ -241,7 +241,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 {
                     "validation_heatmaps": [
                         wandb.Image(
-                            outputs[-1][i].cpu().detach().numpy(),
+                            normalize_image(outputs[-1][i].cpu().detach().numpy()),
                             caption=f"heatmap_{i}"
                         )
                     ]
