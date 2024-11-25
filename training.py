@@ -34,11 +34,19 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         criterion = torch.nn.MSELoss()
     elif criterion_name == "distance" or criterion_name == "DistanceLoss":
         criterion = DistanceLoss()
-    elif criterion_name == "adaptive_wing" or criterion_name == "AdaptiveWing" or criterion_name == "AdapWingLoss":
+    elif (
+        criterion_name == "adaptive_wing"
+        or criterion_name == "AdaptiveWing"
+        or criterion_name == "AdapWingLoss"
+    ):
         criterion = AdaptiveWingLoss()
     elif criterion_name == "l1" or criterion_name == "L1":
         criterion = torch.nn.L1Loss()
-    elif criterion_name == "cross_entropy_loss" or criterion_name == "CrossEntropyLoss" or criterion_name == "CELoss":
+    elif (
+        criterion_name == "cross_entropy_loss"
+        or criterion_name == "CrossEntropyLoss"
+        or criterion_name == "CELoss"
+    ):
         criterion = torch.nn.CrossEntropyLoss()
     else:
         logger.error(f"Criterion {criterion_name} not supported")
@@ -81,10 +89,20 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     print(f"\n====================\nStarting training...\n====================\n")
     # write in the log file
     with open(log_path, "a") as log_file:
-        log_file.write(f"\n====================\nStarting training...\n====================\n\n")
+        log_file.write(
+            f"\n====================\nStarting training...\n====================\n\n"
+        )
 
     best_val_loss = float("inf")
     for epoch in range(start_epoch, n_epochs):
+
+        # print memory usage
+        print(f"Memory allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+        # print memory cached
+        print(f"Memory cached: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
+        # print details of memory
+        print(f"Memory details: {torch.cuda.memory_summary()}")
+
         model.train()
         train_loss = 0.0
         epoch_time = time.time()
@@ -115,7 +133,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             f"Epoch [{epoch+1}/{n_epochs}] \n ----- \n"
             f"Training: \n"
             f"Training Loss: {train_loss:.4f} | "
-            #f"Training Accuracy: {accuracy:.2f}% | "
+            # f"Training Accuracy: {accuracy:.2f}% | "
             f"Time: {epoch_time:.2f}s \n"
         )
         print(
@@ -158,7 +176,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         epoch_message = (
             f"Validation: \n"
             f"Validation Loss: {val_loss:.4f} | "
-            #f"Validation Accuracy: {accuracy:.2f}% | "
+            # f"Validation Accuracy: {accuracy:.2f}% | "
             f"Time: {val_time:.2f}s \n"
             f"Total time epoch {epoch+1}: {epoch_time + val_time:.2f}s \n"
             f"====================\n"
@@ -190,9 +208,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_loss.pt"))
             best_val_loss = val_loss
 
-        #empty cuda cache
+        # empty cuda cache
         torch.cuda.empty_cache()
-
 
     # Save the last model checkpoint
     checkpoint = {
