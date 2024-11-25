@@ -102,6 +102,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     model.to(device)
 
     wandb.watch(model)
+    logger.info(f"To track model with wandb, go to: {wandb.run.get_url()}")
 
     # training
     print(f"\n====================\nStarting training...\n====================\n")
