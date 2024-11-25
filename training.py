@@ -20,7 +20,7 @@ from utils import save_images
 from losses import DistanceLoss, AdaptiveWingLoss
 
 
-def calculate_accuracy(predictions, targets, threshold=5):
+def calculate_accuracy(predictions, targets, threshold=20):
     """
     Calculate accuracy based on the distance between predicted and target landmarks.
     A prediction is considered correct if the distance is less than the threshold.
@@ -139,12 +139,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             train_loss += loss.item()
             train_accuracy += calculate_accuracy(outputs_ld, landmarks)
-            wandb.log({"train_loss": loss.item()})
-            wandb.log({"train_accuracy": train_accuracy})
 
         train_loss /= len(train_loader)
         train_accuracy /= len(train_loader)
         epoch_time = time.time() - epoch_time
+
+        wandb.log({"train_loss": train_loss})
+        wandb.log({"train_accuracy": train_accuracy})
 
         epoch_message = (
             f"Epoch [{epoch+1}/{n_epochs}] \n ----- \n"
@@ -167,6 +168,20 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}"),
             basename="ld",
         )
+        # save heatmaps in wandb with cmap jet
+        for i in range(len(outputs[-1])):
+            wandb.log(
+                {
+                    "training_heatmaps": [
+                        wandb.Image(
+                            outputs[-1][i].cpu().detach().numpy(),
+                            caption=f"heatmap_{i}",
+                            cmap="jet",
+                        )
+                    ]
+                }
+            )
+
         # validation
         model.eval()
         val_loss = 0.0
@@ -189,12 +204,12 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 val_loss += loss.item()
                 val_accuracy += calculate_accuracy(outputs_ld, landmarks)
 
-                wandb.log({"val_loss": loss.item()})
-                wandb.log({"val_accuracy": val_accuracy})
-
         val_loss /= len(val_loader)
         val_accuracy /= len(val_loader)
         val_time = time.time() - val_time
+
+        wandb.log({"val_loss": val_loss})
+        wandb.log({"val_accuracy": val_accuracy})
 
         epoch_message = (
             f"Validation: \n"
@@ -220,6 +235,19 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}"),
             basename="ld",
         )
+        # save heatmaps in wandb with cmap jet
+        for i in range(len(outputs[-1])):
+            wandb.log(
+                {
+                    "validation_heatmaps": [
+                        wandb.Image(
+                            outputs[-1][i].cpu().detach().numpy(),
+                            caption=f"heatmap_{i}",
+                            cmap="jet",
+                        )
+                    ]
+                }
+            )
 
         if val_loss < best_val_loss:
             # Save the model checkpoint
