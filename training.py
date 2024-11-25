@@ -6,6 +6,7 @@ import os
 import torch
 import sys
 import time
+import wandb
 
 from tqdm import tqdm
 from loguru import logger
@@ -17,6 +18,17 @@ sys.path.append(root_folder_path)
 from models.utils import hm2ld
 from utils import save_images
 from losses import DistanceLoss, AdaptiveWingLoss
+
+
+def calculate_accuracy(predictions, targets, threshold=5):
+    """
+    Calculate accuracy based on the distance between predicted and target landmarks.
+    A prediction is considered correct if the distance is less than the threshold.
+    """
+    distances = torch.sqrt(torch.sum((predictions - targets) ** 2, dim=1))
+    correct_predictions = distances < threshold
+    accuracy = correct_predictions.float().mean().item() * 100
+    return accuracy
 
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -60,6 +72,10 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         logger.error(f"Optimizer {optimizer_name} not supported")
         return
 
+    # Init the wandb logger
+    experiment_name = os.path.basename(log_path).split(".")[0]
+    wandb.init(project=experiment_name, config=config)
+
     # Split the dataset into training and validation sets
     train_size = config["train"]["train_size"]
     trainset, valset = torch.utils.data.random_split(
@@ -85,6 +101,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
     model.to(device)
 
+    wandb.watch(model)
+
     # training
     print(f"\n====================\nStarting training...\n====================\n")
     # write in the log file
@@ -98,6 +116,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
         model.train()
         train_loss = 0.0
+        train_accuracy = 0.0
         epoch_time = time.time()
         for batch in tqdm(
             train_loader,
@@ -118,20 +137,24 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.step()
 
             train_loss += loss.item()
+            train_accuracy += calculate_accuracy(outputs_ld, landmarks)
+            wandb.log({"train_loss": loss.item()})
+            wandb.log({"train_accuracy": train_accuracy})
 
         train_loss /= len(train_loader)
+        train_accuracy /= len(train_loader)
         epoch_time = time.time() - epoch_time
 
         epoch_message = (
             f"Epoch [{epoch+1}/{n_epochs}] \n ----- \n"
             f"Training: \n"
             f"Training Loss: {train_loss:.4f} | "
-            # f"Training Accuracy: {accuracy:.2f}% | "
+            f"Training Accuracy: {train_accuracy:.2f}% | "
             f"Time: {epoch_time:.2f}s \n"
         )
         print(
             f"Training Loss: {train_loss:.4f} | "
-            # f"Training Accuracy: {accuracy:.2f}% | "
+            f"Training Accuracy: {train_accuracy:.2f}% | "
             f"Time: {epoch_time:.2f}s"
         )
         with open(log_path, "a") as log_file:
@@ -146,6 +169,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         # validation
         model.eval()
         val_loss = 0.0
+        val_accuracy = 0.0
 
         val_time = time.time()
         with torch.no_grad():
@@ -162,21 +186,26 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
                 loss = criterion(outputs_ld, landmarks)
                 val_loss += loss.item()
+                val_accuracy += calculate_accuracy(outputs_ld, landmarks)
+
+                wandb.log({"val_loss": loss.item()})
+                wandb.log({"val_accuracy": val_accuracy})
 
         val_loss /= len(val_loader)
+        val_accuracy /= len(val_loader)
         val_time = time.time() - val_time
 
         epoch_message = (
             f"Validation: \n"
             f"Validation Loss: {val_loss:.4f} | "
-            # f"Validation Accuracy: {accuracy:.2f}% | "
+            f"Validation Accuracy: {val_accuracy:.2f}% | "
             f"Time: {val_time:.2f}s \n"
             f"Total time epoch {epoch+1}: {epoch_time + val_time:.2f}s \n"
             f"====================\n"
         )
         print(
             f"Validation Loss: {val_loss:.4f} | "
-            # f"Validation Accuracy: {accuracy:.2f}% | "
+            f"Validation Accuracy: {val_accuracy:.2f}% | "
             f"Time: {val_time:.2f}s \n\n"
             f"Total time epoch {epoch+1}: {epoch_time + val_time:.2f}s \n\n"
             f"====================\n"
