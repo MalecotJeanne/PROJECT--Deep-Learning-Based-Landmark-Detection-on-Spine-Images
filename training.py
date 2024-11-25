@@ -96,13 +96,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     best_val_loss = float("inf")
     for epoch in range(start_epoch, n_epochs):
 
-        # print memory usage
-        print(f"Memory allocated: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-        # print memory cached
-        print(f"Memory cached: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
-        # print details of memory
-        print(f"Memory details: {torch.cuda.memory_summary()}")
-
         model.train()
         train_loss = 0.0
         epoch_time = time.time()
