@@ -1,5 +1,18 @@
 """
-TODO: Docstring
+This script contains the training loop for a deep learning model designed for landmark detection on spine images.
+It includes functions for training the model and validating the model.
+Function:
+    train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
+        Train the model using the provided dataset and configuration.
+        Args:
+            dataset (Dataset): The dataset to be used for training and validation.
+            model (torch.nn.Module): The model to be trained.
+            chkpt_dir (str): Directory to save and load model checkpoints.
+            results_dir (str): Directory to save training and validation results.
+            config (dict): Configuration dictionary containing training parameters.
+            device (torch.device): The device to run the training on (CPU or GPU).
+            log_path (str): Path to the log file for logging training progress.
+
 """
 
 import os
@@ -15,21 +28,9 @@ from monai.data import DataLoader
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from models.utils import hm2ld
+from models.utils import hm2ld, calculate_accuracy, make_same_type
 from utils import save_images, normalize_image
 from losses import DistanceLoss, AdaptiveWingLoss
-
-
-def calculate_accuracy(predictions, targets, threshold=20):
-    """
-    Calculate accuracy based on the distance between predicted and target landmarks.
-    A prediction is considered correct if the distance is less than the threshold.
-    """
-    distances = torch.sqrt(torch.sum((predictions - targets) ** 2, dim=1))
-    correct_predictions = distances < threshold
-    accuracy = correct_predictions.float().mean().item() * 100
-    return accuracy
-
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
     """
@@ -71,6 +72,9 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     else:
         logger.error(f"Optimizer {optimizer_name} not supported")
         return
+    
+    accuracy_name = config["train"]["accuracy"]
+    logger.warning(f"Accuracy not implemented yet")
 
     # Init the wandb logger
     experiment_name = os.path.basename(log_path).split(".")[0]
@@ -113,6 +117,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             f"\n====================\nStarting training...\n====================\n\n"
         )
 
+    loss_method = config["train"]["loss_method"]
+
     best_val_loss = float("inf")
     for epoch in range(start_epoch, n_epochs):
 
@@ -132,14 +138,15 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             outputs = model(inputs)  # the outputs are heatmaps !
 
-            outputs_ld = hm2ld(outputs, device)
+            #outputs_ld = hm2ld(outputs, device)
+            outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
-            loss = criterion(outputs_ld, landmarks)
+            loss = criterion(outputs_, landmarks_)
             loss.backward()
             optimizer.step()
 
             train_loss += loss.item()
-            train_accuracy += calculate_accuracy(outputs_ld, landmarks)
+            train_accuracy += calculate_accuracy(outputs_, landmarks_)
 
         train_loss /= len(train_loader)
         train_accuracy /= len(train_loader)
@@ -169,14 +176,14 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}"),
             basename="ld",
         )
-        # save normalized heatmaps in wandb 
+        # save normalized heatmaps in wandb
         for i in range(len(outputs[-1])):
             wandb.log(
                 {
                     "training_heatmaps": [
                         wandb.Image(
                             normalize_image(outputs[-1][i].cpu().detach().numpy()),
-                            caption=f"heatmap_{i}"
+                            caption=f"heatmap_{i}",
                         )
                     ]
                 }
@@ -198,11 +205,12 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 inputs, landmarks = inputs.to(device), landmarks.to(device)
 
                 outputs = model(inputs)
-                outputs_ld = hm2ld(outputs, device)
+                #outputs_ld = hm2ld(outputs, device)
+                outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
-                loss = criterion(outputs_ld, landmarks)
+                loss = criterion(outputs_, landmarks_)
                 val_loss += loss.item()
-                val_accuracy += calculate_accuracy(outputs_ld, landmarks)
+                val_accuracy += calculate_accuracy(outputs_, landmarks_)
 
         val_loss /= len(val_loader)
         val_accuracy /= len(val_loader)
@@ -235,14 +243,14 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}"),
             basename="ld",
         )
-        # save heatmaps in wandb 
+        # save heatmaps in wandb
         for i in range(len(outputs[-1])):
             wandb.log(
                 {
                     "validation_heatmaps": [
                         wandb.Image(
                             normalize_image(outputs[-1][i].cpu().detach().numpy()),
-                            caption=f"heatmap_{i}"
+                            caption=f"heatmap_{i}",
                         )
                     ]
                 }

@@ -30,7 +30,7 @@ def save_images(
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    n_images = len(os.listdir(image_dir)) if load_image else len(image_dir)
+    n_images = len(os.listdir(image_dir))
 
     for i in tqdm(range(n_images)):
         image_name = os.listdir(image_dir)[i]

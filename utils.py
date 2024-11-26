@@ -12,6 +12,8 @@ import cv2
 from scipy.io import loadmat
 
 
+### Data loading functions ###
+
 def load_data(path_data, path_labels):
     """
     Load the data and labels from the given paths
@@ -47,7 +49,6 @@ def create_dict(data, labels):
     ]
     return data_dict
 
-
 def load_labels_mat(dir_list):
     """
     docstring (with ref)
@@ -73,6 +74,29 @@ def load_config(config_dir):
         config = yaml.safe_load(file)
     return config
 
+
+def sort_by_date(directory):
+    def get_creation_time(item):
+        item_path = os.path.join(directory, item)
+        return os.path.getctime(item_path)
+
+    items = os.listdir(directory)
+    sorted_items = sorted(items, key=get_creation_time)
+    return sorted_items
+
+
+def get_last_folder(path, model_name):
+    """
+    Return the last folder (by date) in the given path
+    """
+    list_dir = sort_by_date(path)
+    for dir in list_dir:
+        if model_name in dir and os.path.isdir(os.path.join(path, dir)):
+            return dir
+    return None
+
+
+### Image processing functions ###
 
 def save_images(images, save_dir, basename="image"):
     """

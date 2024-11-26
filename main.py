@@ -14,9 +14,8 @@ from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 from models import init_model
 from transforms import ResizeWithLandmarksd
 from training import train_model
-from utils import load_config, load_data
-
-# from test import test_model
+from test import test_model
+from utils import load_config, load_data, get_last_folder
 
 
 # Parse the arguments
@@ -134,9 +133,10 @@ def main():
         # Set the device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
-        logger.info(f"Using GPU device(s): {args.gpu_devices}")
         model.to(device)
         logger.info(f"Using device: {device} for training")
+        if device.type == "cuda":
+            logger.info(f"Using GPU device(s): {args.gpu_devices}")
 
         # Train the model
         chkpt_dir = args.chkpt_dir
@@ -149,9 +149,26 @@ def main():
         )
 
     if args.phase == "test":
+        # Set the device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
+        model.to(device)
+        logger.info(f"Using device: {device} for testing")
+        if device.type == "cuda":
+            logger.info(f"Using GPU device(s): {args.gpu_devices}")
+
         # Test the model
-        # test_model(dataset)
-        print("test phase = pas encore fait")
+        chkpt_dir = args.chkpt_dir
+        logger.warning(f"Checkpoint directory: {chkpt_dir}")
+        if chkpt_dir is None:
+            model_train_dir = get_last_folder(args.results_dir, args.model)
+            logger.warning(f"Last training directory: {model_train_dir}")
+            chkpt_dir = os.path.join(args.results_dir, model_train_dir, "checkpoints")
+        if chkpt_dir is None:
+            logger.error("No checkpoint directory found.")
+            return
+        test_model(dataset, model, chkpt_dir, results_dir, config, device, logs_filepath)
+
 
 
 if __name__ == "__main__":
