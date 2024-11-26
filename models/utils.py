@@ -4,6 +4,13 @@ This file contains utility functions relative to the model and training process.
 
 import torch
 import numpy as np
+import os
+import sys
+
+root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(root_folder_path)
+
+from utils import normalize_image
 
 
 def calculate_accuracy(predictions, targets, threshold=20):
@@ -24,6 +31,7 @@ def make_same_type(outputs, landmarks, loss_method, device="cpu"):
     if loss_method == "heatmap":
         map_size = outputs.shape[-2:]
         heatmap_from_landmarks = ld2hm(landmarks, map_size, device)
+
         return outputs, heatmap_from_landmarks
     else:
         output_landmarks = hm2ld(outputs, device)
@@ -96,6 +104,9 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
             for i in range(h):
                 for j in range(w):
                     heatmap[i, j] = np.exp(-((i - x) ** 2 + (j - y) ** 2) / 50) #TODO: find the optimal sigma value, and put it in a config
+                    #normalize the heatmap
+                    heatmap = heatmap / np.max(heatmap)
+
 
             heatmaps[batch, ld] = heatmap
             
