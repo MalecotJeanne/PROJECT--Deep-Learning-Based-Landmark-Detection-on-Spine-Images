@@ -101,9 +101,8 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
                 continue
 
             heatmap = np.zeros((h, w))
-            for i in range(h):
-                for j in range(w):
-                    heatmap[i, j] = np.exp(-((i - x) ** 2 + (j - y) ** 2) / 50) #TODO: find the optimal sigma value, and put it in a config
+            xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+            heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / 50) #TODO: find the optimal sigma value, and put it in a config
 
             heatmaps[batch, ld] = heatmap
             
