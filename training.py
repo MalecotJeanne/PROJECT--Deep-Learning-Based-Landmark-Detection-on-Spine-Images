@@ -1,20 +1,3 @@
-"""
-This script contains the training loop for a deep learning model designed for landmark detection on spine images.
-It includes functions for training the model and validating the model.
-Function:
-    train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
-        Train the model using the provided dataset and configuration.
-        Args:
-            dataset (Dataset): The dataset to be used for training and validation.
-            model (torch.nn.Module): The model to be trained.
-            chkpt_dir (str): Directory to save and load model checkpoints.
-            results_dir (str): Directory to save training and validation results.
-            config (dict): Configuration dictionary containing training parameters.
-            device (torch.device): The device to run the training on (CPU or GPU).
-            log_path (str): Path to the log file for logging training progress.
-
-"""
-
 import os
 import torch
 import sys
@@ -28,7 +11,7 @@ from monai.data import DataLoader
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from models.utils import hm2ld, calculate_accuracy, make_same_type
+from models.utils import calculate_accuracy, make_same_type
 from utils import save_images, normalize_image
 from losses import DistanceLoss, AdaptiveWingLoss
 
@@ -148,6 +131,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             train_loss += loss.item()
             train_accuracy += calculate_accuracy(outputs_, landmarks_)
 
+            # Empty the CUDA cache
+            torch.cuda.empty_cache()
+
+            # Delete unnecessary variables
+            del inputs, landmarks, outputs, outputs_, landmarks_, loss
+            torch.cuda.empty_cache()
+
         train_loss /= len(train_loader)
         train_accuracy /= len(train_loader)
         epoch_time = time.time() - epoch_time
@@ -211,6 +201,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 loss = criterion(outputs_, landmarks_)
                 val_loss += loss.item()
                 val_accuracy += calculate_accuracy(outputs_, landmarks_)
+
+                # Empty the CUDA cache
+                torch.cuda.empty_cache()
+
+                # Delete unnecessary variables
+                del inputs, landmarks, outputs, outputs_, landmarks_, loss
+                torch.cuda.empty_cache()
 
         val_loss /= len(val_loader)
         val_accuracy /= len(val_loader)
