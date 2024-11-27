@@ -1,6 +1,39 @@
 import torch
-from monai.transforms import Resize
+from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
 
+
+def training_transforms(transforms_dict):
+    """
+    Define the training transforms.
+    """
+    return Compose(
+        [
+            LoadImaged(keys=["image"], image_only=True),
+            EnsureChannelFirstd(keys=["image"]),
+            ResizeWithLandmarksd(
+                spatial_size=transforms_dict["resizing"]["spatial_size"],
+                mode=transforms_dict["resizing"]["interpolation"],
+                keys=["image", "landmarks"],
+            ), 
+        ]
+    )
+
+
+def testing_transforms(transforms_dict):
+    """
+    Define the testing transforms.
+    """
+    return Compose(
+        [
+            LoadImaged(keys=["image"], image_only=True),
+            EnsureChannelFirstd(keys=["image"]),
+            ResizeWithLandmarksd(
+                spatial_size=transforms_dict["resizing"]["spatial_size"],
+                mode=transforms_dict["resizing"]["interpolation"],
+                keys=["image", "landmarks"],
+            ), 
+        ]
+    )
 
 class ResizeWithLandmarksd(Resize):
     """

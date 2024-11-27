@@ -17,33 +17,56 @@ class HRNet(nn.Module):
     but using some blocks from MONAI instead of creating them from scratch.
     """
 
-    def __init__(self):
+    def __init__(self, config):
         super(HRNet, self).__init__()
 
         # TODO: remove hard-coded values and make them configurable
+        self.config = config
+        self.spatial_dims = config["spatial_dims"]
+        self.in_channels = config["in_channels"]
+        self.num_classes = config["out_channels"]
+        self.channels = config["channels"]
+        self.kernel_size = config["kernel_size"]   
+
+        self.reduction = 2 # reduction ratio in the SE block
 
         # -------------------------------------------------------
         # stage 1
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64, momentum=0)
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(64, momentum=0)
+        channels_stage1 = self.channels[0] * self.reduction
+        self.conv1 = nn.Conv2d(
+            config["in_channels"],
+            channels_stage1,
+            kernel_size=3,
+            stride=2,
+            padding=1,
+            bias=False,
+        )
+        self.bn1 = nn.BatchNorm2d(channels_stage1, momentum=0)
+        self.conv2 = nn.Conv2d(
+            channels_stage1,
+            channels_stage1,
+            kernel_size=3,
+            stride=2,
+            padding=1,
+            bias=False,
+        )
+        self.bn2 = nn.BatchNorm2d(channels_stage1, momentum=0)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=-1)
 
         # using bottleneck implementation from MONAI -> the expension  is always 4 in this class.
         self.bottleneck1 = SEResNetBottleneck(
-            spatial_dims=2,
-            inplanes=64,
-            planes=32 // 4,  # TODO: define in a config file
+            spatial_dims=self.spatial_dims,
+            inplanes=channels_stage1,
+            planes= self.channels[0] // 4, # 4 is the expension factor
             groups=1,
-            reduction=2,  # 2 is default value in SEBlock
+            reduction=self.reduction,  # 2 is default value in SEBlock
             downsample=None,
         )
 
         # -------------------------------------------------------
         # stage 2
-        num_channels = [32, 64]  # eventually add expansion, if BottleNeck?
+        num_channels = self.channels[:2]
         self.num_branches_2 = len(num_channels)
 
         # no expansion with a Basic Block
@@ -54,7 +77,7 @@ class HRNet(nn.Module):
 
         # -------------------------------------------------------
         # stage 3
-        num_channels = [32, 64, 128]
+        num_channels = self.channels[:3]
         self.num_branches_3 = len(num_channels)
 
         self.transition2 = self._make_transition_layer(pre_stage_channels, num_channels)
@@ -64,7 +87,7 @@ class HRNet(nn.Module):
 
         # -------------------------------------------------------
         # stage 4
-        num_channels = [32, 64, 128, 256]
+        num_channels = self.channels
         self.num_branches_4 = len(num_channels)
 
         self.transition3 = self._make_transition_layer(pre_stage_channels, num_channels)
@@ -80,7 +103,7 @@ class HRNet(nn.Module):
         # final layer
         self.final_layer = nn.Conv2d(
             in_channels=pre_stage_channels[0],
-            out_channels=68,  # nb of landmarks
+            out_channels=self.num_classes,  # nb of landmarks
             kernel_size=1,
             stride=1,
             padding="same",
@@ -211,16 +234,14 @@ class HRNet(nn.Module):
         y_list = self.stage4(x_list)
 
         x = self.final_layer(y_list[0])
-        
-        #convert into a probability map, flatten (last two dims) it and apply softmax
+
+        # convert into a probability map, flatten (last two dims) it and apply softmax
         H,W = x.size()[-2:]
         x = x.view(x.size(0), x.size(1), -1)
         x = self.softmax(x)
         x = x.view(x.size(0), x.size(1), H, W)
 
         return x
-
-        
 
 
 class HighResModule(nn.Module):

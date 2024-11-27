@@ -9,3 +9,14 @@ train:
   criterion: MSE
   loss_method: heatmap
   accuracy: euclidean
+transforms:
+  resizing:
+    spatial_size: (1024, 512)
+    interpolation: bilinear
+model:
+  spatial_dims: 2
+  in_channels: 1
+  out_channels: 68
+  channels: [32, 64, 128, 256]
+  strides: [2, 2, 2]
+  kernel_size: 3

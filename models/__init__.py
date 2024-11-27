@@ -1,7 +1,9 @@
 from models.hrnet import HRNet
+from models.unet import UNet
 
 models = {
     "hrnet": HRNet,
+    "unet": UNet,
 }
 
 def init_model(name, *args, **kwargs):

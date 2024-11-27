@@ -12,7 +12,7 @@ from monai.data import Dataset, CacheDataset
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 
 from models import init_model
-from transforms import ResizeWithLandmarksd
+from transforms import training_transforms, testing_transforms
 from training import train_model
 from test import test_model
 from utils import load_config, load_data, get_last_folder
@@ -115,19 +115,12 @@ def main():
     logger.success("Data loaded successfully!")
 
     # Create dataset and dataloader
-    transforms = Compose(
-        [
-            LoadImaged(keys=["image"], image_only=True),
-            EnsureChannelFirstd(keys=["image"]),
-            ResizeWithLandmarksd(
-                spatial_size=(1024, 512), mode="bilinear", keys=["image", "landmarks"]
-            ),  # FIXME: find an optimal spatial size for the images, and put it in a config
-        ]
-    )  # TODO: define the transforms in a specific file
+    transforms_dict = config["transforms"]
+    transforms = training_transforms(transforms_dict) if args.phase == "train" else testing_transforms(transforms_dict)
     dataset = Dataset(data=data_dict, transform=transforms)
 
     # Load the model
-    model = init_model(args.model)
+    model = init_model(args.model, config["model"])
 
     if args.phase == "train":
         # Set the device
@@ -168,7 +161,6 @@ def main():
             logger.error("No checkpoint directory found.")
             return
         test_model(dataset, model, chkpt_dir, results_dir, config, device, logs_filepath)
-
 
 
 if __name__ == "__main__":
