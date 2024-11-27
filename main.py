@@ -38,7 +38,7 @@ parser.add_argument(
 parser.add_argument(
     "--config_dir", default="config.yaml", type=str, help="path to the config file"
 )
-parser.add_argument("--model", choices=["hrnet", "resnet"], help="model to use")
+parser.add_argument("--model", choices=["hrnet", "unet"], help="model to use")
 parser.add_argument("--phase", choices=["train", "test"], help="train or test")
 parser.add_argument("--gpu_devices", default="1,2", type=str, help="gpu devices")
 

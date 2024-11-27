@@ -16,7 +16,7 @@ class UNet(UNet):
         Initialize the UNet model with the provided configuration.
         """
         super().__init__(
-            dimensions=config["spatial_dims"],
+            spatial_dims=config["spatial_dims"],
             in_channels=config["in_channels"],
             out_channels=config["out_channels"],
             channels=config["channels"],

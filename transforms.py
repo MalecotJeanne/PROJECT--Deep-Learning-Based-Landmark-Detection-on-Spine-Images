@@ -11,7 +11,7 @@ def training_transforms(transforms_dict):
             LoadImaged(keys=["image"], image_only=True),
             EnsureChannelFirstd(keys=["image"]),
             ResizeWithLandmarksd(
-                spatial_size=transforms_dict["resizing"]["spatial_size"],
+                spatial_size=tuple(transforms_dict["resizing"]["spatial_size"]),
                 mode=transforms_dict["resizing"]["interpolation"],
                 keys=["image", "landmarks"],
             ), 
