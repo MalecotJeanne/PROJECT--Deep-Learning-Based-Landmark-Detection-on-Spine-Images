@@ -118,6 +118,9 @@ def main():
     transforms_dict = config["transforms"]
     transforms = training_transforms(transforms_dict) if args.phase == "train" else testing_transforms(transforms_dict)
     dataset = Dataset(data=data_dict, transform=transforms)
+    
+    logger.info(f"Memory allocated: {torch.cuda.memory_allocated()}")
+    logger.info(f"Memory cached: {torch.cuda.memory_reserved()}")
 
     # Load the model
     model = init_model(args.model, config["model"])
@@ -130,6 +133,10 @@ def main():
         logger.info(f"Using device: {device} for training")
         if device.type == "cuda":
             logger.info(f"Using GPU device(s): {args.gpu_devices}")
+
+        #see memory usage
+        logger.info(f"Memory allocated: {torch.cuda.memory_allocated()}")
+        logger.info(f"Memory cached: {torch.cuda.memory_reserved()}")
 
         # Train the model
         chkpt_dir = args.chkpt_dir
