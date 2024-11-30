@@ -1,6 +1,7 @@
 import torch
 import einops
 from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
+from monai.data import PILReader
 
 
 def training_transforms(transforms_dict):
@@ -9,7 +10,7 @@ def training_transforms(transforms_dict):
     """
     return Compose(
         [
-            LoadImaged(keys=["image"], image_only=True),
+            LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
             ResizeWithLandmarksd(
                 spatial_size=tuple(transforms_dict["resizing"]["spatial_size"]),
@@ -26,7 +27,7 @@ def testing_transforms(transforms_dict):
     """
     return Compose(
         [
-            LoadImaged(keys=["image"], image_only=True),
+            LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
             ResizeWithLandmarksd(
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
@@ -40,7 +41,6 @@ class ResizeWithLandmarksd(Resize):
     """
     TODO: Docstring
     """
-
     def __init__(
         self,
         spatial_size,
@@ -56,17 +56,16 @@ class ResizeWithLandmarksd(Resize):
     def __call__(self, data, **kwargs):
         image, landmarks = data[self.keys[0]], data[self.keys[1]]
         original_height, original_width = image.shape[-2], image.shape[-1]
-
         image = super().__call__(image, **kwargs) 
         data[self.keys[0]] = image
 
         resized_height, resized_width = image.shape[-2], image.shape[-1]
 
         scaling_factors = torch.tensor(
-            [resized_height / original_height, resized_width / original_width],
+            [resized_width / original_width, resized_height / original_height],
             dtype=landmarks.dtype,
         )
-        data[self.keys[1]] = landmarks * scaling_factors
+        data[self.keys[1]] = torch.round(landmarks * scaling_factors)
 
         return data
 

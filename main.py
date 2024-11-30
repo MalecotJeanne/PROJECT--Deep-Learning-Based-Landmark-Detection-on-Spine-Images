@@ -18,7 +18,7 @@ from models import init_model
 from transforms import training_transforms, testing_transforms
 from training import train_model
 from test import test_model
-from utils import load_config, load_data, get_last_folder
+from utils import load_config, load_data, get_last_folder, save_dataset
 
 
 # Parse the arguments
@@ -99,6 +99,11 @@ def main():
     config = load_config(args.config_dir)
     logger.success("Config file {} loaded successfully".format(args.config_dir))
 
+    # save the config file
+    config_dir = os.path.join(results_dir, "config.yaml")
+    with open(config_dir, "w") as file:
+        file.write(config)
+
     if args.phase == "train":
         logger.info("Loading data for training...")
         path_data = os.path.join(path_data, "training")
@@ -125,7 +130,13 @@ def main():
         else testing_transforms(transforms_dict)
     )
     dataset = Dataset(data=data_dict, transform=transforms)
-    
+
+    # save the dataset images
+    dataset_dir = os.path.join(results_dir, "dataset_images")
+    if not os.path.exists(dataset_dir):
+        os.makedirs(dataset_dir)
+        
+    save_dataset(dataset, dataset_dir)
 
     # Load the model
     model = init_model(args.model, config["model"])
@@ -138,14 +149,6 @@ def main():
         if device.type == "cuda":
             logger.info(f"Using GPU device(s): {args.gpu_devices}")
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
-        
-        # print(torch.cuda.device_count())
-        # # parallelize the model
-        # if torch.cuda.device_count() > 1:
-        #     torch.distributed.init_process_group()
-        #     assert torch.distributed.is_initialized() == True, "Distributed not initialized"
-        #     torch.nn.parallel.DistributedDataParallel(model)
-        #     logger.info(f"Model parallelized on {torch.cuda.device_count()} GPUs")
 
         # Train the model
         chkpt_dir = args.chkpt_dir

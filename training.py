@@ -12,7 +12,7 @@ root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(root_folder_path)
 
 from models.utils import calculate_accuracy, make_same_type
-from utils import save_images, normalize_image, wandb_img
+from utils import save_heatmaps, normalize_image, wandb_img
 from losses import DistanceLoss, AdaptiveWingLoss
 from transforms import softmax2d
 
@@ -56,7 +56,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     else:
         logger.error(f"Optimizer {optimizer_name} not supported")
         return
-    
+
     accuracy_name = config["train"]["accuracy"]
     logger.warning(f"Accuracy not implemented yet")
 
@@ -162,7 +162,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             log_file.write(epoch_message)
 
         # saving heatmaps
-        save_images(
+        save_heatmaps(
             outputs[-1],
             os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}"),
             basename="ld",
@@ -170,7 +170,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         # save normalized heatmaps in wandb
         for i in range(len(outputs[-1])):
             wandb.log({"training_heatmaps": wandb_img(outputs[-1][i], cmap="jet", caption=f"heatmap_{i}")})
-        
 
         # validation
         model.eval()
@@ -189,7 +188,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
                 outputs = model(inputs)
                 outputs = softmax2d(outputs)
-                #outputs_ld = hm2ld(outputs, device)
+                # outputs_ld = hm2ld(outputs, device)
                 outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
                 loss = criterion(outputs_, landmarks_)
@@ -229,7 +228,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             log_file.write(epoch_message)
 
         # saving heatmaps
-        save_images(
+        save_heatmaps(
             outputs[-1],
             os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}"),
             basename="ld",

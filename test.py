@@ -7,7 +7,7 @@ from monai.data import DataLoader
 from tqdm import tqdm
 import wandb
 
-from utils import save_images, normalize_image, get_last_folder
+from utils import save_heatmaps, normalize_image, get_last_folder
 from losses import DistanceLoss, AdaptiveWingLoss
 from models.utils import hm2ld, calculate_accuracy, make_same_type
 
@@ -80,7 +80,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
         )
 
     loss_method = config["train"]["loss_method"]
-    
+
     with torch.no_grad():
         for batch in tqdm(test_loader, total=len(test_loader), desc="Testing"):
             inputs, landmarks = batch["image"], batch["landmarks"]
@@ -95,7 +95,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             test_accuracy += calculate_accuracy(outputs_, landmarks_)
 
             # Save heatmaps
-            save_images(
+            save_heatmaps(
                 outputs[-1],
                 os.path.join(results_dir, "testing_heatmaps"),
                 basename="ld",

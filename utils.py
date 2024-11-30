@@ -108,7 +108,7 @@ def get_last_folder(path, model_name):
 
 ### Image processing functions ###
 
-def save_images(images, save_dir, basename="image"):
+def save_heatmaps(images, save_dir, basename="image"):
     """
     Save the images in the given directory
     """
@@ -124,6 +124,33 @@ def save_images(images, save_dir, basename="image"):
         cv2.imwrite(
             save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
         )
+
+def save_dataset(dataset, save_dir):
+    """
+    Save the dataset in the given directory
+    """
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    for i, data in enumerate(dataset):
+        image = data["image"].detach().cpu().numpy()
+        #image = normalize_image(image)
+
+        #create image in cv2 format
+        if len(image.shape) == 2:  # Check if the image is single-channel
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        elif image.shape[0] == 1:  # Check if the image is single-channel
+            image = cv2.cvtColor(image[0], cv2.COLOR_GRAY2BGR)
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        landmarks = data["landmarks"].detach().cpu().numpy()
+        for landmark in landmarks:
+            cv2.circle(
+                image, (int(landmark[0]), int(landmark[1])), 1, (0, 255, 0), -1
+            )
+
+        save_path = os.path.join(save_dir, f"image_{i}.jpg")
+        cv2.imwrite(save_path, image)
 
 def wandb_img(tensor, cmap="jet", caption="image"):
     """
