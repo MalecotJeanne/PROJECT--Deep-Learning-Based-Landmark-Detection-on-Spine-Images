@@ -11,7 +11,7 @@ train:
   accuracy: euclidean
 transforms:
   resizing:
-    spatial_size: [512, 168]
+    spatial_size: [512, 160]
     interpolation: bilinear
 model:
   spatial_dims: 2

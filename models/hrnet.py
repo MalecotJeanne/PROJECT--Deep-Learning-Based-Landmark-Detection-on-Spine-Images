@@ -222,7 +222,8 @@ class HRNet(nn.Module):
                 x_list.append(self.transition2[i](y_list[-1]))
             else:
                 x_list.append(y_list[i])
-
+	
+        print("AHHHH", x_list[0].shape)
         y_list = self.stage3(x_list)
 
         x_list = []
@@ -384,6 +385,8 @@ class HighResModule(nn.Module):
                 if i == j:
                     y = y + x[j]
                 else:
+                    print("y shape: ", y.shape)
+                    print("x[j] shape: ", x[j].shape)
                     y = y + fuse_layer[j](x[j])
 
             x_fuse.append(self.relu(y))
