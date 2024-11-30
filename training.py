@@ -120,7 +120,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.zero_grad()
 
             outputs = model(inputs)  # the outputs are heatmaps !
-
+            tqdm.write(f"{outputs.shape}")   	
             #outputs_ld = hm2ld(outputs, device)
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
@@ -135,7 +135,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.cuda.empty_cache()
 
             # Delete unnecessary variables
-            del inputs, landmarks, outputs, outputs_, landmarks_, loss
+            del inputs, landmarks, outputs_, landmarks_, loss
             torch.cuda.empty_cache()
 
         train_loss /= len(train_loader)
@@ -206,7 +206,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 torch.cuda.empty_cache()
 
                 # Delete unnecessary variables
-                del inputs, landmarks, outputs, outputs_, landmarks_, loss
+                del inputs, landmarks, outputs_, landmarks_, loss
                 torch.cuda.empty_cache()
 
         val_loss /= len(val_loader)
