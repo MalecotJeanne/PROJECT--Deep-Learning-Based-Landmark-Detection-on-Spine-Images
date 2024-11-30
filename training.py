@@ -12,7 +12,7 @@ root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(root_folder_path)
 
 from models.utils import calculate_accuracy, make_same_type
-from utils import save_images, normalize_image
+from utils import save_images, normalize_image, wandb_img
 from losses import DistanceLoss, AdaptiveWingLoss
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -119,8 +119,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             optimizer.zero_grad()
 
-            outputs = model(inputs)  # the outputs are heatmaps !
-            tqdm.write(f"{outputs.shape}")   	
+            outputs = model(inputs)  # the outputs are heatmaps !  	
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
             loss = criterion(outputs_, landmarks_)
@@ -167,16 +166,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         )
         # save normalized heatmaps in wandb
         for i in range(len(outputs[-1])):
-            wandb.log(
-                {
-                    "training_heatmaps": [
-                        wandb.Image(
-                            normalize_image(outputs[-1][i].cpu().detach().numpy()),
-                            caption=f"heatmap_{i}",
-                        )
-                    ]
-                }
-            )
+            wandb.log({"training_heatmaps": wandb_img(outputs[-1][i], cmap="jet", caption=f"heatmap_{i}")})
+        
 
         # validation
         model.eval()
@@ -241,16 +232,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         )
         # save heatmaps in wandb
         for i in range(len(outputs[-1])):
-            wandb.log(
-                {
-                    "validation_heatmaps": [
-                        wandb.Image(
-                            normalize_image(outputs[-1][i].cpu().detach().numpy()),
-                            caption=f"heatmap_{i}",
-                        )
-                    ]
-                }
-            )
+            wandb.log({"validation_heatmaps": wandb_img(outputs[-1][i], cmap="jet", caption=f"heatmap_{i}")})
 
         if val_loss < best_val_loss:
             # Save the model checkpoint
