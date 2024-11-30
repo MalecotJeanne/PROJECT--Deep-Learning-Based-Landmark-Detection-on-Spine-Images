@@ -237,7 +237,9 @@ class HRNet(nn.Module):
 
         # convert into a probability map, flatten (last two dims) it and apply softmax
         H,W = x.size()[-2:]
-        x = x.view(x.size(0), x.size(1), -1)
+        # x: (B, C, H, W)
+        # TODO: use F.softmax
+        x = x.view(x.size(0), x.size(1), -1)  # TODO: replace with einops rearrange
         x = self.softmax(x)
         x = x.view(x.size(0), x.size(1), H, W)
 

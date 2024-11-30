@@ -7,9 +7,12 @@ import os
 from datetime import datetime
 
 import torch
+
 from loguru import logger
 from monai.data import Dataset, CacheDataset
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
+import torch.distributed
+
 
 from models import init_model
 from transforms import training_transforms, testing_transforms
@@ -29,9 +32,7 @@ parser.add_argument(
 parser.add_argument(
     "--results_dir", default="Results", type=str, help="path to save the results"
 )
-parser.add_argument(
-    "--logs_dir", default=None, type=str, help="path to save the logs"
-)
+parser.add_argument("--logs_dir", default=None, type=str, help="path to save the logs")
 parser.add_argument(
     "--chkpt_dir", default=None, type=str, help="path of the checkpoint to use"
 )
@@ -51,7 +52,9 @@ def main():
     """
     # check if the logs directory exists
     results_dir = args.results_dir
-    execution_name = f"{args.model}_{args.phase}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+    execution_name = (
+        f"{args.model}_{args.phase}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
+    )
     results_dir = os.path.join(results_dir, execution_name)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
@@ -116,20 +119,33 @@ def main():
 
     # Create dataset and dataloader
     transforms_dict = config["transforms"]
-    transforms = training_transforms(transforms_dict) if args.phase == "train" else testing_transforms(transforms_dict)
+    transforms = (
+        training_transforms(transforms_dict)
+        if args.phase == "train"
+        else testing_transforms(transforms_dict)
+    )
     dataset = Dataset(data=data_dict, transform=transforms)
     
+
     # Load the model
     model = init_model(args.model, config["model"])
 
     if args.phase == "train":
         # Set the device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
         model.to(device)
         logger.info(f"Using device: {device} for training")
         if device.type == "cuda":
             logger.info(f"Using GPU device(s): {args.gpu_devices}")
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
+        
+        # print(torch.cuda.device_count())
+        # # parallelize the model
+        # if torch.cuda.device_count() > 1:
+        #     torch.distributed.init_process_group()
+        #     assert torch.distributed.is_initialized() == True, "Distributed not initialized"
+        #     torch.nn.parallel.DistributedDataParallel(model)
+        #     logger.info(f"Model parallelized on {torch.cuda.device_count()} GPUs")
 
         # Train the model
         chkpt_dir = args.chkpt_dir
@@ -160,7 +176,9 @@ def main():
         if chkpt_dir is None:
             logger.error("No checkpoint directory found.")
             return
-        test_model(dataset, model, chkpt_dir, results_dir, config, device, logs_filepath)
+        test_model(
+            dataset, model, chkpt_dir, results_dir, config, device, logs_filepath
+        )
 
 
 if __name__ == "__main__":
