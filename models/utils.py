@@ -28,9 +28,7 @@ def calculate_accuracy(predictions, targets, threshold=20):
 def make_same_type(outputs, landmarks, loss_method, device="cpu"):
     """
     Make the outputs and landmarks the same type for loss calculation.
-    """
-    #convert outputs to probabilities
-    outputs = softmax2d(outputs)
+    """    
     if loss_method == "heatmap":
         map_size = outputs.shape[-2:]
         heatmap_from_landmarks = ld2hm(landmarks, map_size, device)
@@ -49,7 +47,6 @@ def hm2ld(heatmaps, device="cpu"):
     Output:
         landmarks: tensor of shape (batch_size, n_landmarks, 2)
     """
-
     heatmaps = heatmaps.cpu().detach().numpy()
     batch_size, n_landmarks, h, w = heatmaps.shape
 

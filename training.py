@@ -14,6 +14,7 @@ sys.path.append(root_folder_path)
 from models.utils import calculate_accuracy, make_same_type
 from utils import save_images, normalize_image, wandb_img
 from losses import DistanceLoss, AdaptiveWingLoss
+from transforms import softmax2d
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
     """
@@ -185,6 +186,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 inputs, landmarks = inputs.to(device), landmarks.to(device)
 
                 outputs = model(inputs)
+                outputs = softmax2d(outputs)
                 #outputs_ld = hm2ld(outputs, device)
                 outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
