@@ -1,4 +1,5 @@
 import torch
+import einops
 from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
 
 
@@ -68,3 +69,13 @@ class ResizeWithLandmarksd(Resize):
         data[self.keys[1]] = landmarks * scaling_factors
 
         return data
+
+
+def softmax2d(input):
+    """
+    Apply softmax to an input of shape (batch_size, n_landmarks, h, w).
+    """
+    flatten = einops.rearrange(input, "b l h w -> b l (h w)")
+    pdist = torch.nn.functional.softmax(flatten, dim=-1)
+    pdist2d = einops.rearrange(pdist, "b l (h w) -> b l h w", h=input.shape[-2])
+    return pdist2d

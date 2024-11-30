@@ -11,6 +11,7 @@ root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(root_folder_path)
 
 from utils import normalize_image
+from transforms import softmax2d
 
 
 def calculate_accuracy(predictions, targets, threshold=20):
@@ -28,6 +29,8 @@ def make_same_type(outputs, landmarks, loss_method, device="cpu"):
     """
     Make the outputs and landmarks the same type for loss calculation.
     """
+    #convert outputs to probabilities
+    outputs = softmax2d(outputs)
     if loss_method == "heatmap":
         map_size = outputs.shape[-2:]
         heatmap_from_landmarks = ld2hm(landmarks, map_size, device)
@@ -46,16 +49,12 @@ def hm2ld(heatmaps, device="cpu"):
     Output:
         landmarks: tensor of shape (batch_size, n_landmarks, 2)
     """
-    # convert heatmaps to numpy array
-    heatmaps = heatmaps.cpu().detach().numpy()
 
-    # get the shape of the heatmaps
+    heatmaps = heatmaps.cpu().detach().numpy()
     batch_size, n_landmarks, h, w = heatmaps.shape
 
-    # create the landmarks array
     landmarks = np.zeros((batch_size, n_landmarks, 2))
 
-    # get the x and y coordinates
     for i in range(batch_size):
         for j in range(n_landmarks):
             heatmap = heatmaps[i, j]
@@ -67,7 +66,6 @@ def hm2ld(heatmaps, device="cpu"):
 
             landmarks[i, j] = np.array([x, y])
 
-    # convert landmarks to tensor
     landmarks = torch.tensor(
         landmarks, dtype=torch.float32, device=device, requires_grad=True
     )
@@ -111,5 +109,7 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
     heatmaps = torch.tensor(
         heatmaps, dtype=torch.float32, device=device, requires_grad=True
     )
+    #convert heatmaps to probabilities
+    heatmaps = softmax2d(heatmaps)
 
     return heatmaps

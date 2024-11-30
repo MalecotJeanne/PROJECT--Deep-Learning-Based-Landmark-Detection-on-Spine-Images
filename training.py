@@ -121,7 +121,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             outputs = model(inputs)  # the outputs are heatmaps !
             tqdm.write(f"{outputs.shape}")   	
-            #outputs_ld = hm2ld(outputs, device)
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
             loss = criterion(outputs_, landmarks_)
