@@ -1,13 +1,16 @@
 """
 TODO: docstring
 """
-
-import numpy as np
-import os
 import glob
-import yaml
-import torch
+import os
+from io import BytesIO
+
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import wandb
+import yaml
 
 from scipy.io import loadmat
 
@@ -114,6 +117,24 @@ def save_images(images, save_dir, basename="image"):
         cv2.imwrite(
             save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
         )
+
+def wandb_img(tensor, cmap="jet", caption="image"):
+    """
+    convert a tensor to a wandb image, to be saved with the desired colormap
+    """
+    image = tensor.detach().cpu().numpy()
+    image = normalize_image(image)
+
+    plt.figure(figsize=(4, 4))
+    plt.imshow(image, cmap=cmap)
+    plt.axis("off")
+
+    buf = BytesIO()
+    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
+    buf.seek(0)
+    plt.close()
+
+    return wandb.Image(buf)
 
 def normalize_image(image): 
     """
