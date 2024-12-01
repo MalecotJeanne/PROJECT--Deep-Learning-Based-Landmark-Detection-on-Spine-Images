@@ -121,11 +121,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.zero_grad()
 
             outputs = model(inputs)  # the outputs are heatmaps !  	
-<<<<<<< HEAD
-            outputs = softmax2d(outputs)
-=======
-            print(f"sum: {torch.sum(outputs[0][0])}")
->>>>>>> 707ac8d3f2eccec68d1bdc3a139ee17e2b582278
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
             loss = criterion(outputs_, landmarks_)
