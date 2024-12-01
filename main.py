@@ -99,10 +99,10 @@ def main():
     config = load_config(args.config_dir)
     logger.success("Config file {} loaded successfully".format(args.config_dir))
 
-    # save the config file
-    config_dir = os.path.join(results_dir, "config.yaml")
-    with open(config_dir, "w") as file:
-        file.write(config)
+    # #TODO save the config file
+    #config_dir = os.path.join(results_dir, "config.yaml")
+    #with open(config_dir, "w") as file:
+    #    file.write(config)
 
     if args.phase == "train":
         logger.info("Loading data for training...")
