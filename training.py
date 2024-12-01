@@ -14,11 +14,9 @@ import wandb
 
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
-
 from losses import AdaptiveWingLoss, DistanceLoss, LandmarkAccuracy
 from models.utils import make_landmarks, make_same_type
-from transforms import softmax2d
-from utils import normalize_image, save_heatmaps, wandb_img
+from utils import save_heatmaps, wandb_img
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
     """
@@ -143,7 +141,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             pred_landmarks = make_landmarks(outputs)
             true_landmarks = landmarks.cpu().detach().numpy()
-            train_accuracy += LandmarkAccuracy(100).evaluate(pred_landmarks, true_landmarks)
+            train_accuracy += LandmarkAccuracy(10).evaluate(pred_landmarks, true_landmarks)
 
             # Empty the CUDA cache
             torch.cuda.empty_cache()
@@ -207,7 +205,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
                 pred_landmarks = make_landmarks(outputs)
                 true_landmarks = landmarks.cpu().detach().numpy()
-                val_accuracy += LandmarkAccuracy(100).evaluate(pred_landmarks, true_landmarks)
+                val_accuracy += LandmarkAccuracy(10).evaluate(pred_landmarks, true_landmarks)
 
                 # Empty the CUDA cache
                 torch.cuda.empty_cache()

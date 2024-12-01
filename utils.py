@@ -1,5 +1,6 @@
 """
-TODO: docstring
+General utility functions for the project
+Author: Jeanne Malécot
 """
 import glob
 import os
@@ -41,7 +42,7 @@ def load_data(path_data, path_labels):
     if len(data) != len(labels):
         raise ValueError(
             "Number of data samples and labels do not match"
-        )  # TODO: add logger
+        )  
 
     labels = load_labels_mat(labels)
 
@@ -61,7 +62,7 @@ def create_dict(data, labels):
 
 def load_labels_mat(dir_list):
     """
-    docstring (with ref)
+    Load the labels from the .mat files
     """
     labels = []
     for label_dir in dir_list:

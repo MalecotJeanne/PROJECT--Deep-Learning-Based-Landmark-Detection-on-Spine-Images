@@ -1,3 +1,8 @@
+"""
+This file contains the training and testing transforms for the model, and defines custom transforms.
+Author: Jeanne Malécot
+"""
+
 import torch
 import einops
 from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
@@ -39,7 +44,8 @@ def testing_transforms(transforms_dict):
 
 class ResizeWithLandmarksd(Resize):
     """
-    TODO: Docstring
+    Resize the image and the landmarks accordingly.
+    Based on the Resize transform from MONAI.
     """
     def __init__(
         self,
