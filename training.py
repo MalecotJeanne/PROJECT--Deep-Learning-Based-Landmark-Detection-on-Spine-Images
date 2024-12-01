@@ -1,24 +1,36 @@
+"""
+This script contains the training function for all the model, depending on the configuration file.
+Author: Jeanne Malécot
+"""
 import os
-import torch
 import sys
 import time
-import wandb
 
-from tqdm import tqdm
+import torch
 from loguru import logger
 from monai.data import DataLoader
+from tqdm import tqdm
+import wandb
 
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from models.utils import make_same_type, make_landmarks
-from utils import save_heatmaps, normalize_image, wandb_img
-from losses import DistanceLoss, AdaptiveWingLoss, LandmarkAccuracy
+from losses import AdaptiveWingLoss, DistanceLoss, LandmarkAccuracy
+from models.utils import make_landmarks, make_same_type
 from transforms import softmax2d
+from utils import normalize_image, save_heatmaps, wandb_img
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
     """
-    TODO: Docstring
+    Train the model on the dataset, using the configuration provided.
+    Args:
+        dataset (Dataset): the dataset to train on
+        model (torch.nn.Module): the model to train
+        chkpt_dir (str): the directory to save the checkpoints, and eventually load the model from
+        results_dir (str): the directory to save the results
+        config (str): the configuration file (yaml)
+        device (str): the device to use for training
+        log_path (str): the path to the log file
     """
     logger.add(log_path, mode="a")
 

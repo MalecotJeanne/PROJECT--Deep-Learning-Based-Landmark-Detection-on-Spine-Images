@@ -274,14 +274,14 @@ class HighResModule(nn.Module):
                 "num_branches({}) is not equal to the length of num_channels({})".format(
                     self.num_branches, len(self.in_channels)
                 )
-            )  # TODO : add a logger
+            )  
 
         if self.num_branches != len(self.out_channels):
             raise ValueError(
                 "num_branches({}) is not equal to the length of num_inchannels({})".format(
                     self.num_branches, len(self.out_channels)
                 )
-            )  # TODO : add a logger
+            )  
 
     def _make_one_branch(self, branch_index):
 

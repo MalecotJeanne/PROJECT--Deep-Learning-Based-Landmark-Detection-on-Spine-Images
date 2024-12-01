@@ -1,5 +1,5 @@
 """
-Docstring
+Main script to train or test the model
 """
 
 import argparse
@@ -7,18 +7,16 @@ import os
 from datetime import datetime
 
 import torch
-
-from loguru import logger
-from monai.data import Dataset, CacheDataset
-from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 import torch.distributed
-
+import yaml
+from loguru import logger
+from monai.data import Dataset
 
 from models import init_model
-from transforms import training_transforms, testing_transforms
-from training import train_model
 from test import test_model
-from utils import load_config, load_data, get_last_folder, save_dataset
+from training import train_model
+from transforms import testing_transforms, training_transforms
+from utils import get_last_folder, load_config, load_data, save_dataset
 
 
 # Parse the arguments
@@ -48,7 +46,7 @@ args = parser.parse_args()
 
 def main():
     """
-    TODO: Docstring
+    Main function to train or test the model
     """
     # check if the logs directory exists
     results_dir = args.results_dir
@@ -99,10 +97,10 @@ def main():
     config = load_config(args.config_dir)
     logger.success("Config file {} loaded successfully".format(args.config_dir))
 
-    # #TODO save the config file
-    #config_dir = os.path.join(results_dir, "config.yaml")
-    #with open(config_dir, "w") as file:
-    #    file.write(config)
+    # save the config file
+    config_dir = os.path.join(results_dir, "config.yaml")
+    with open(config_dir, "w") as file:
+        yaml.dump(config, file)
 
     if args.phase == "train":
         logger.info("Loading data for training...")
