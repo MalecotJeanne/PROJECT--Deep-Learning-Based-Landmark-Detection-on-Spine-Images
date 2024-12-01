@@ -9,7 +9,7 @@ import wandb
 
 from utils import save_heatmaps, normalize_image, get_last_folder
 from losses import DistanceLoss, AdaptiveWingLoss
-from models.utils import hm2ld, calculate_accuracy, make_same_type
+from models.utils import hm2ld, make_same_type
 
 
 def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
