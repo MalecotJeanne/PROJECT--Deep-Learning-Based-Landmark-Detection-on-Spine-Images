@@ -3,6 +3,6 @@ Report/
 __pycache__/
 .vscode/
 Results/
-run.sh
+runs/
 slurms/
 wandb/
