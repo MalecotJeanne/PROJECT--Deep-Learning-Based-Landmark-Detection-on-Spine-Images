@@ -10,20 +10,6 @@ import sys
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from utils import normalize_image
-from transforms import softmax2d
-
-
-def calculate_accuracy(predictions, targets, threshold=20):
-    """
-    Calculate accuracy based on the distance between predicted and target landmarks.
-    A prediction is considered correct if the distance is less than the threshold.
-    """
-    # distances = torch.sqrt(torch.sum((predictions - targets) ** 2, dim=1))
-    # correct_predictions = distances < threshold
-    # accuracy = correct_predictions.float().mean().item() * 100
-    # return accuracy
-    return 0
 
 def make_same_type(outputs, landmarks, loss_method, device="cpu"):
     """
@@ -81,6 +67,9 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
     """
     landmarks = landmarks.cpu().detach().numpy()
 
+    kernel_ratio = 0.05
+    kernel_size = kernel_ratio * min(spatial_size)
+
     batch_size, n_landmarks, _ = landmarks.shape
     h, w = spatial_size
     
@@ -97,7 +86,7 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
 
             heatmap = np.zeros((h, w))
             xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
-            heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / 50) #TODO: find the optimal sigma value, and put it in a config
+            heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / 2 * kernel_size**2) 
 
             heatmaps[batch, ld] = heatmap
             
@@ -106,7 +95,25 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
     heatmaps = torch.tensor(
         heatmaps, dtype=torch.float32, device=device, requires_grad=True
     )
-    #convert heatmaps to probabilities
-    heatmaps = softmax2d(heatmaps)
 
     return heatmaps
+
+def make_landmarks(outputs):
+    """
+    Convert the outputs to landmarks, taking the argmax.
+    This function is used for the evaluation of the model, not for the backpropagation (discontinuous).
+    """
+    outputs = outputs.cpu().detach().numpy()
+    batch_size, n_landmarks, h, w = outputs.shape
+
+    landmarks = np.zeros((batch_size, n_landmarks, 2))
+
+    for i in range(batch_size):
+        for j in range(n_landmarks):
+            
+            heatmap = outputs[i, j]
+            x, y = np.unravel_index(heatmap.argmax(), heatmap.shape)
+            landmarks[i, j] = np.array([x, y])
+
+    landmarks = torch.tensor(landmarks, dtype=torch.float32)
+    return landmarks

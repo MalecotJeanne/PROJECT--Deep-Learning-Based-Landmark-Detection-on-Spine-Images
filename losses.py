@@ -4,9 +4,8 @@ Author: Jeanne Malécot
 """
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import math
+import torch.nn as nn   
+import numpy as np
 
 
 class DistanceLoss(nn.Module):
@@ -55,3 +54,20 @@ class AdaptiveWingLoss(nn.Module):
             loss = A * delta_y - C
 
         return loss 
+
+
+class LandmarkAccuracy:
+    def __init__(self, threshold=0.05):
+        self.threshold = threshold
+
+    def euclidean_distance(self, preds, targets):
+        return torch.norm(preds - targets, dim=-1)
+
+    def evaluate(self, preds, targets):
+
+        distances = self.euclidean_distance(preds, targets)
+        n_landmarks = preds.shape[1]
+
+        correct = (distances < self.threshold).sum()
+
+        return correct / (n_landmarks * preds.shape[0])
