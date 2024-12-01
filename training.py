@@ -130,13 +130,14 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             train_loss += loss.item()
 
             pred_landmarks = make_landmarks(outputs)
-            train_accuracy += LandmarkAccuracy().evaluate(pred_landmarks, landmarks)
+            true_landmarks = landmarks.cpu().detach().numpy()
+            train_accuracy += LandmarkAccuracy(100).evaluate(pred_landmarks, true_landmarks)
 
             # Empty the CUDA cache
             torch.cuda.empty_cache()
 
             # Delete unnecessary variables
-            del inputs, landmarks, outputs_, landmarks_, pred_landmarks, loss
+            del inputs, landmarks, outputs_, landmarks_, pred_landmarks, true_landmarks, loss        
             torch.cuda.empty_cache()
 
         train_loss /= len(train_loader)
@@ -187,21 +188,20 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 inputs, landmarks = inputs.to(device), landmarks.to(device)
 
                 outputs = model(inputs)
-                outputs = softmax2d(outputs)
-                # outputs_ld = hm2ld(outputs, device)
                 outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
                 loss = criterion(outputs_, landmarks_)
                 val_loss += loss.item()
 
                 pred_landmarks = make_landmarks(outputs)
-                val_accuracy += LandmarkAccuracy().evaluate(pred_landmarks, landmarks)
+                true_landmarks = landmarks.cpu().detach().numpy()
+                val_accuracy += LandmarkAccuracy(100).evaluate(pred_landmarks, true_landmarks)
 
                 # Empty the CUDA cache
                 torch.cuda.empty_cache()
 
                 # Delete unnecessary variables
-                del inputs, landmarks, outputs_, landmarks_, pred_landmarks, loss
+                del inputs, landmarks, outputs_, landmarks_, pred_landmarks, true_landmarks, loss
                 torch.cuda.empty_cache()
 
         val_loss /= len(val_loader)
