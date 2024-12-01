@@ -11,9 +11,9 @@ from monai.data import DataLoader
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from models.utils import calculate_accuracy, make_same_type
+from models.utils import make_same_type, make_landmarks
 from utils import save_heatmaps, normalize_image, wandb_img
-from losses import DistanceLoss, AdaptiveWingLoss
+from losses import DistanceLoss, AdaptiveWingLoss, LandmarkAccuracy
 from transforms import softmax2d
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -121,22 +121,23 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.zero_grad()
 
             outputs = model(inputs)  # the outputs are heatmaps !  	
-            outputs = softmax2d(outputs)
             print(f"sum: {torch.sum(outputs[0][0])}")
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
 
             loss = criterion(outputs_, landmarks_)
             loss.backward()
             optimizer.step()
-
+         
             train_loss += loss.item()
-            train_accuracy += calculate_accuracy(outputs_, landmarks_)
+
+            pred_landmarks = make_landmarks(outputs)
+            train_accuracy += LandmarkAccuracy().evaluate(pred_landmarks, landmarks)
 
             # Empty the CUDA cache
             torch.cuda.empty_cache()
 
             # Delete unnecessary variables
-            del inputs, landmarks, outputs_, landmarks_, loss
+            del inputs, landmarks, outputs_, landmarks_, pred_landmarks, loss
             torch.cuda.empty_cache()
 
         train_loss /= len(train_loader)
@@ -193,13 +194,15 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
                 loss = criterion(outputs_, landmarks_)
                 val_loss += loss.item()
-                val_accuracy += calculate_accuracy(outputs_, landmarks_)
+
+                pred_landmarks = make_landmarks(outputs)
+                val_accuracy += LandmarkAccuracy().evaluate(pred_landmarks, landmarks)
 
                 # Empty the CUDA cache
                 torch.cuda.empty_cache()
 
                 # Delete unnecessary variables
-                del inputs, landmarks, outputs_, landmarks_, loss
+                del inputs, landmarks, outputs_, landmarks_, pred_landmarks, loss
                 torch.cuda.empty_cache()
 
         val_loss /= len(val_loader)
