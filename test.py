@@ -82,6 +82,8 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             transforms = Invertd(
                 keys=["image", "landmarks"],
                 transform=test_transfo,
+                orig_keys=["image", "landmarks"],
+                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
             )
 
             image_meta_dict, landmarks_meta_dict = (
