@@ -38,6 +38,7 @@ def testing_transforms(transforms_dict):
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
                 mode=transforms_dict["resizing"]["interpolation"],
                 keys=["image", "landmarks"],
+                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
             ), 
         ]
     )
