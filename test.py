@@ -90,6 +90,8 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 transform=test_transfo,
             )
 
+            print(batch.keys())
+
             image_meta_dict, landmarks_meta_dict = (
                 batch["image_meta_dict"],
                 batch["landmarks_meta_dict"],
