@@ -56,7 +56,7 @@ def create_dict(data, labels):
     Create a dictionary with the data and labels suitable for the Monai Dataset class
     """
     data_dict = [
-        {"image": img, "landmarks": torch.Tensor(lbl)} for img, lbl in zip(data, labels)
+        {"image": img, "landmarks": torch.Tensor(lbl), "image_meta_dict":None, "landmarks_meta_dict":None } for img, lbl in zip(data, labels)
     ]
     return data_dict
 
