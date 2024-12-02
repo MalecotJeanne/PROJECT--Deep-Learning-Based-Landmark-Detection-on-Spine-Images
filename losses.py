@@ -66,8 +66,7 @@ class LandmarkAccuracy:
     def evaluate(self, preds, targets):
 
         distances = self.euclidean_distance(preds, targets)
-        n_landmarks = preds.shape[1]
 
         correct = (distances < self.threshold).sum()
 
-        return correct / (n_landmarks * preds.shape[0])
+        return correct / (preds.shape[0])

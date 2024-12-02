@@ -8,8 +8,8 @@ from tqdm import tqdm
 import wandb
 
 from utils import save_heatmaps, normalize_image, get_last_folder
-from losses import DistanceLoss, AdaptiveWingLoss
-from models.utils import hm2ld, make_same_type
+from losses import DistanceLoss, AdaptiveWingLoss, LandmarkAccuracy
+from models.utils import hm2ld, make_same_type, make_landmarks
 
 
 def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -92,7 +92,13 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
 
             loss = criterion(outputs_, landmarks_)
             test_loss += loss.item()
-            test_accuracy += calculate_accuracy(outputs_, landmarks_)
+
+            # Calculate accuracy
+            true_landmarks = landmarks.cpu().numpy()
+            pred_landmarks = make_landmarks(outputs)
+            test_accuracy += LandmarkAccuracy(10).evaluate(
+                pred_landmarks, true_landmarks
+            )
 
             # Save heatmaps
             save_heatmaps(
@@ -113,7 +119,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 )
 
     test_loss /= len(test_loader)
-    test_accuracy /= len(test_loader)
 
     logger.success(
         f"Testing complete: Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.2f}%"
