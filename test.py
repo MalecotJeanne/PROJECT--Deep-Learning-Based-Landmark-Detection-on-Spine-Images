@@ -80,6 +80,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
 
             test_transfo = testing_transforms(config["transforms"])
             transforms = Invertd(
+                keys=["image", "landmarks"],
                 transform=test_transfo,
             )
 
