@@ -76,6 +76,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             images = inputs
             #reverse transformations
             print(images.shape)
+            print(pred_landmarks.shape)
             for batch_idx in range(images.shape[0]):
                 print(images[batch_idx].shape)
 
