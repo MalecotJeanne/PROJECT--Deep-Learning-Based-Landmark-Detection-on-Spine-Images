@@ -46,32 +46,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
     # Create the data loader
     test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
-    test_loss = 0.0
     test_accuracy = 0.0
-
-    # Set the loss criterion
-    criterion_name = config["train"]["criterion"]
-    if criterion_name == "mse" or criterion_name == "MSE":
-        criterion = torch.nn.MSELoss()
-    elif criterion_name == "distance" or criterion_name == "DistanceLoss":
-        criterion = DistanceLoss()
-    elif (
-        criterion_name == "adaptive_wing"
-        or criterion_name == "AdaptiveWing"
-        or criterion_name == "AdapWingLoss"
-    ):
-        criterion = AdaptiveWingLoss()
-    elif criterion_name == "l1" or criterion_name == "L1":
-        criterion = torch.nn.L1Loss()
-    elif (
-        criterion_name == "cross_entropy_loss"
-        or criterion_name == "CrossEntropyLoss"
-        or criterion_name == "CELoss"
-    ):
-        criterion = torch.nn.CrossEntropyLoss()
-    else:
-        logger.error(f"Criterion {criterion_name} not supported")
-        return
 
     logger.info("Starting testing...")
     with open(log_path, "a") as log_file:
@@ -87,11 +62,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             inputs, landmarks = inputs.to(device), landmarks.to(device)
 
             outputs = model(inputs)
-            outputs_ld = hm2ld(outputs, device)
             outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method,device)
-
-            loss = criterion(outputs_, landmarks_)
-            test_loss += loss.item()
 
             # Calculate accuracy
             true_landmarks = landmarks.cpu().numpy()
