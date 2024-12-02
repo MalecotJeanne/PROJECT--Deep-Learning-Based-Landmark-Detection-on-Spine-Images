@@ -7,6 +7,7 @@ import torch
 import einops
 from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
 from monai.data import PILReader
+import numpy as np
 
 
 def training_transforms(transforms_dict):
@@ -67,19 +68,19 @@ class ResizeWithLandmarksd(Resize):
         original_height, original_width = image.shape[-2], image.shape[-1]
         original_size = (original_height, original_width)
 
-        resized_image = super().__call__(image, **kwargs) 
+        resized_image = super().__call__(image, **kwargs)
         resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
 
-        scaling_factors = torch.tensor(
+        scaling_factors = np.array(
             [resized_width / original_width, resized_height / original_height],
-            dtype=landmarks.dtype,
+            dtype=landmarks.numpy().dtype,
         )
 
         data[self.keys[0]] = resized_image
-        data[self.keys[1]] = torch.round(landmarks * scaling_factors)
+        data[self.keys[1]] = torch.round(landmarks * torch.tensor(scaling_factors, dtype=landmarks.dtype))
 
         # saving metadata
-        data[self.meta_keys[0]] = {"original_size": original_size}
+        data[self.meta_keys[0]] = {"original_size": np.array(original_size)}
         data[self.meta_keys[1]] = {"scaling_factors": scaling_factors}
 
         return data

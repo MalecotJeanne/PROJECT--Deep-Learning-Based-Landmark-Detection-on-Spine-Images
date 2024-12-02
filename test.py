@@ -75,7 +75,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             # Save images with landmarks
             pred_landmarks = pred_landmarks[0]
             image = inputs[0]
-            print(type(image), type(pred_landmarks))
 
             # reverse transformations
 
@@ -94,7 +93,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 batch["image_meta_dict"],
                 batch["landmarks_meta_dict"],
             )
-            print(image_meta_dict, landmarks_meta_dict)
             batch = {
                 "image": image,
                 "landmarks": pred_landmarks,

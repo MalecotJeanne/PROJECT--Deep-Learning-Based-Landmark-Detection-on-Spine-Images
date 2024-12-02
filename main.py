@@ -127,7 +127,6 @@ def main():
         if args.phase == "train"
         else testing_transforms(transforms_dict)
     )
-    print(data_dict[0])
     dataset = Dataset(data=data_dict, transform=transforms)
 
     # save the dataset images
