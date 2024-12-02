@@ -75,10 +75,11 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             pred_landmarks = torch.tensor(pred_landmarks).to(device)
             images = inputs
             #reverse transformations
+            print(images.shape)
             for batch_idx in range(images.shape[0]):
                 print(images[batch_idx].shape)
 
-
+    
 
 
     logger.success(
