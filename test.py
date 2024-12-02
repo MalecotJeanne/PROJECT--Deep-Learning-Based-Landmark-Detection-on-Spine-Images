@@ -76,27 +76,40 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             pred_landmarks = pred_landmarks[0]
             image = inputs[0]
             print(type(image), type(pred_landmarks))
-            #reverse transformations
+
+            # reverse transformations
+
             test_transfo = testing_transforms(config["transforms"])
-            transforms = Invertd(keys= ["image", "landmarks"], transform = test_transfo)
-            batch = {"image": image, "landmarks": pred_landmarks}
+            transforms = Invertd(
+                keys=[
+                    "image",
+                    "landmarks",
+                    "image_meta_dict",
+                    "landmarks_meta_dict",
+                ],
+                transform=test_transfo,
+            )
+
+            image_meta_dict, landmarks_meta_dict = (
+                batch["image_meta_dict"],
+                batch["landmarks_meta_dict"],
+            )
+            batch = {
+                "image": image,
+                "landmarks": pred_landmarks,
+                "image_meta_dict": image_meta_dict,
+                "landmarks_meta_dict": landmarks_meta_dict,
+            }
             batch = transforms(batch)
             image = batch["image"]
             pred_landmarks = batch["landmarks"]
             print(image.shape)
             print(pred_landmarks.shape)
 
-
-
-    logger.success(
-        f"Testing complete: Accuracy: {test_accuracy:.2f}%"
-    )
+    logger.success(f"Testing complete: Accuracy: {test_accuracy:.2f}%")
     with open(log_path, "a") as log_file:
         log_file.write(
-            f"Testing Accuracy: {test_accuracy:.2f}%\n"
-            f"====================\n"
+            f"Testing Accuracy: {test_accuracy:.2f}%\n" f"====================\n"
         )
 
-    print(
-        f"Testing complete: Accuracy: {test_accuracy:.2f}%\n"
-    )
+    print(f"Testing complete: Accuracy: {test_accuracy:.2f}%\n")
