@@ -10,6 +10,7 @@ import wandb
 from utils import save_heatmaps, normalize_image, get_last_folder
 from losses import DistanceLoss, AdaptiveWingLoss, LandmarkAccuracy
 from models.utils import hm2ld, make_same_type, make_landmarks
+from transforms import testing_transforms
 
 
 def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -38,11 +39,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
     model.to(device)
     model.eval()
 
-    # Init the wandb logger
-    experiment_name = os.path.basename(log_path).split(".")[0]
-    wandb.init(project="PRIM-project", config=config)
-    wandb.run.name = "testing_" + experiment_name
-
     # Create the data loader
     test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
@@ -54,15 +50,12 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             f"====================\nStarting testing...\n====================\n"
         )
 
-    loss_method = config["train"]["loss_method"]
-
     with torch.no_grad():
         for batch in tqdm(test_loader, total=len(test_loader), desc="Testing"):
             inputs, landmarks = batch["image"], batch["landmarks"]
             inputs, landmarks = inputs.to(device), landmarks.to(device)
 
             outputs = model(inputs)
-            outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method,device)
 
             # Calculate accuracy
             true_landmarks = landmarks.cpu().numpy()
@@ -77,30 +70,26 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 os.path.join(results_dir, "testing_heatmaps"),
                 basename="ld",
             )
-            for i in range(len(outputs[-1])):
-                wandb.log(
-                    {
-                        "testing_heatmaps": [
-                            wandb.Image(
-                                normalize_image(outputs[-1][i].cpu().detach().numpy()),
-                                caption=f"heatmap_{i}",
-                            )
-                        ]
-                    }
-                )
 
-    test_loss /= len(test_loader)
+            # Save images with landmarks
+            pred_landmarks = torch.tensor(pred_landmarks).to(device)
+            images = inputs
+            #reverse transformations
+            for batch_idx in range(images.shape[0]):
+                print(images[batch_idx].shape)
+
+
+
 
     logger.success(
-        f"Testing complete: Loss: {test_loss:.4f}, Accuracy: {test_accuracy:.2f}%"
+        f"Testing complete: Accuracy: {test_accuracy:.2f}%"
     )
     with open(log_path, "a") as log_file:
         log_file.write(
-            f"Testing Loss: {test_loss:.4f} | Testing Accuracy: {test_accuracy:.2f}%\n"
+            f"Testing Accuracy: {test_accuracy:.2f}%\n"
             f"====================\n"
         )
 
     print(
-        f"Testing complete: Loss: {test_loss:.4f} | "
-        f"Accuracy: {test_accuracy:.2f}%\n"
+        f"Testing complete: Accuracy: {test_accuracy:.2f}%\n"
     )
