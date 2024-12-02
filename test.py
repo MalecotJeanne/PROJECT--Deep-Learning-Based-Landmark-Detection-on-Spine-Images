@@ -77,7 +77,8 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             image = inputs[0]
             print(type(image), type(pred_landmarks))
             #reverse transformations
-            transforms = Compose([Invertd(testing_transforms(config["transforms"]))])    
+            test_transfo = testing_transforms(config["transforms"])
+            transforms = Invertd(test_transfo)
             batch = {"image": image, "landmarks": pred_landmarks}
             batch = transforms(batch)
             image = batch["image"]
