@@ -95,6 +95,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 "image_meta_dict": image_meta_dict,
                 "landmarks_meta_dict": landmarks_meta_dict,
             }
+            print(new_batch)
             new_batch = transforms(new_batch)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
