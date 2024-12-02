@@ -3,6 +3,7 @@ import torch
 from loguru import logger
 
 from monai.data import DataLoader
+from monai.transforms import Compose, Invertd
 
 from tqdm import tqdm
 import wandb
@@ -72,15 +73,18 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             )
 
             # Save images with landmarks
-            pred_landmarks = torch.tensor(pred_landmarks).to(device)
-            images = inputs
+            pred_landmarks = pred_landmarks[0]
+            image = inputs[0]
+            print(type(image), type(pred_landmarks))
             #reverse transformations
-            print(images.shape)
+            transforms = Compose([Invertd(testing_transforms(config["transforms"]))])    
+            batch = {"image": image, "landmarks": pred_landmarks}
+            batch = transforms(batch)
+            image = batch["image"]
+            pred_landmarks = batch["landmarks"]
+            print(image.shape)
             print(pred_landmarks.shape)
-            for batch_idx in range(images.shape[0]):
-                print(images[batch_idx].shape)
 
-    
 
 
     logger.success(
