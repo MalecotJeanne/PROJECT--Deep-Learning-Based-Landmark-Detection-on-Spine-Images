@@ -33,7 +33,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
         return
 
     logger.info(f"Loading model from checkpoint: {chkpt_path}")
-    checkpoint = torch.load(chkpt_path)
+    checkpoint = torch.load(chkpt_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)
     model.eval()

@@ -92,7 +92,7 @@ def sort_by_date(directory):
         return os.path.getctime(item_path)
 
     items = os.listdir(directory)
-    sorted_items = sorted(items, key=get_creation_time)
+    sorted_items = sorted(items, key=get_creation_time, reverse=True)
     return sorted_items
 
 
@@ -102,7 +102,7 @@ def get_last_folder(path, model_name):
     """
     list_dir = sort_by_date(path)
     for dir in list_dir:
-        if model_name in dir and os.path.isdir(os.path.join(path, dir)):
+        if model_name in dir and "train" in dir and os.path.isdir(os.path.join(path, dir)):
             return dir
     return None
 
