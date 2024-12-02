@@ -65,6 +65,7 @@ class ResizeWithLandmarksd(Resize):
     def __call__(self, data, **kwargs):
         image, landmarks = data[self.keys[0]], data[self.keys[1]]
         original_height, original_width = image.shape[-2], image.shape[-1]
+        original_size = (original_height, original_width)
 
         resized_image = super().__call__(image, **kwargs) 
         resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
@@ -78,7 +79,7 @@ class ResizeWithLandmarksd(Resize):
         data[self.keys[1]] = torch.round(landmarks * scaling_factors)
 
         # saving metadata
-        data[self.meta_keys[0]] = {"original_size": (original_height, original_width)}
+        data[self.meta_keys[0]] = {"original_size": original_size}
         data[self.meta_keys[1]] = {"scaling_factors": scaling_factors}
 
         return data
