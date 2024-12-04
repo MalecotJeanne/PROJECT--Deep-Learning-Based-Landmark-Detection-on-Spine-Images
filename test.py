@@ -8,7 +8,7 @@ from monai.transforms import Compose, Invertd
 from tqdm import tqdm
 import wandb
 
-from utils import save_heatmaps, normalize_image, get_last_folder
+from utils import save_heatmaps, normalize_image, get_last_folder, save_dataset
 from losses import DistanceLoss, AdaptiveWingLoss, LandmarkAccuracy
 from models.utils import hm2ld, make_same_type, make_landmarks
 from transforms import testing_transforms
@@ -102,6 +102,21 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             pred_landmarks = batch["landmarks"]
             print(image.shape)
             print(pred_landmarks.shape)
+
+            #save images with landmarks
+            image = image.cpu().numpy()
+            pred_landmarks = pred_landmarks.cpu().numpy()
+
+            image = image.squeeze()
+            image = normalize_image(image)
+            image = (image * 255).astype("uint8")
+
+            pred_landmarks = pred_landmarks.squeeze()
+            pred_landmarks = pred_landmarks.astype("int")
+
+            mini_dataset = {"image": image, "landmarks": pred_landmarks}    
+            save_dataset(mini_dataset, os.path.join(results_dir, "testing_images"))
+
 
     logger.success(f"Testing complete: Accuracy: {test_accuracy:.2f}%")
     with open(log_path, "a") as log_file:
