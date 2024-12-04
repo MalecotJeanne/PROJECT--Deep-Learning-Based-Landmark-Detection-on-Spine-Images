@@ -40,6 +40,8 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
     model.to(device)
     model.eval()
 
+    print("dataset item", dataset[0])
+
     # Create the data loader
     test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
