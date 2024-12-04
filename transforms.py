@@ -35,7 +35,7 @@ def testing_transforms(transforms_dict):
         [
             #LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
-            #CopyItemsd(keys=["image", "landmarks"], names=["image_meta_dict", "landmarks_meta_dict"]),
+            CopyItemsd(keys=["image", "landmarks"], names=["image_meta_dict", "landmarks_meta_dict"]),
             ResizeWithLandmarksd(
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
                 mode=transforms_dict["resizing"]["interpolation"],
@@ -100,6 +100,7 @@ class ResizeWithLandmarksd(InvertibleTransform):
 
     def inverse(self, data):
         
+        print(data)
         for meta_key in self.meta_keys:
             if meta_key not in data:
                 raise KeyError(f"Missing metadata key '{meta_key}' in data.")
