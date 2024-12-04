@@ -81,13 +81,12 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             # reverse transformations
 
             test_transfo = testing_transforms(config["transforms"])
-            transforms = Invertd(
-                keys=["image", "landmarks"],
-                transform=test_transfo,
-                orig_keys=["image", "landmarks"],
-                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
-            )
-            print(transforms)
+            # transforms = Invertd(
+            #     keys=["image", "landmarks"],
+            #     transform=test_transfo,
+            #     orig_keys=["image", "landmarks"],
+            #     meta_keys=["image_meta_dict", "landmarks_meta_dict"],
+            # )
 
             image_meta_dict, landmarks_meta_dict = (
                 batch["image_meta_dict"],
@@ -101,7 +100,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 "landmarks_meta_dict": landmarks_meta_dict,
             }
             print(new_batch)
-            new_batch = transforms(new_batch)
+            new_batch = test_transfo.inverse(new_batch)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
             print(image.shape)
