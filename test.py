@@ -107,11 +107,9 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             image = image.cpu().numpy()
             pred_landmarks = pred_landmarks.cpu().numpy()
 
-            image = image.squeeze()
             image = normalize_image(image)
             image = (image * 255).astype("uint8")
 
-            pred_landmarks = pred_landmarks.squeeze()
             pred_landmarks = pred_landmarks.astype("int")
 
             mini_dataset = {"image": image, "landmarks": pred_landmarks}    
