@@ -85,6 +85,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 orig_keys=["image", "landmarks"],
                 meta_keys=["image_meta_dict", "landmarks_meta_dict"],
             )
+            print(transforms)
 
             image_meta_dict, landmarks_meta_dict = (
                 batch["image_meta_dict"],

@@ -89,7 +89,7 @@ class ResizeWithLandmarksd(Resize):
         """
         Inverse the resizing.
         """
-        print(data)
+        print(data )
         image_meta, landmarks_meta = data[self.meta_keys[0]], data[self.meta_keys[1]]
         original_size = image_meta["original_size"]
         scaling_factors = landmarks_meta["scaling_factors"]
