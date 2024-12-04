@@ -5,7 +5,7 @@ Author: Jeanne Malécot
 
 import torch
 import einops
-from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd, CopyItemsd
+from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd, CopyItemsd, InvertibleTransform
 from monai.data import PILReader
 import numpy as np
 
@@ -45,11 +45,13 @@ def testing_transforms(transforms_dict):
         ]
     )
 
-class ResizeWithLandmarksd(Resize):
+
+class ResizeWithLandmarksd(Resize, InvertibleTransform):
     """
     Resize the image and the landmarks accordingly.
     Based on the Resize transform from MONAI.
     """
+
     def __init__(
         self,
         spatial_size,
@@ -65,32 +67,33 @@ class ResizeWithLandmarksd(Resize):
         self.meta_keys = meta_keys
 
     def __call__(self, data, **kwargs):
+
         image, landmarks = data[self.keys[0]], data[self.keys[1]]
         original_height, original_width = image.shape[-2], image.shape[-1]
-        original_size = (original_height, original_width)
-
         resized_image = super().__call__(image, **kwargs)
         resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
 
-        scaling_factors = np.array(
+        scaling_factors = torch.tensor(
             [resized_width / original_width, resized_height / original_height],
-            dtype=landmarks.numpy().dtype,
+            dtype=landmarks.dtype,
         )
 
         data[self.keys[0]] = resized_image
-        data[self.keys[1]] = torch.round(landmarks * torch.tensor(scaling_factors, dtype=landmarks.dtype))
+        data[self.keys[1]] = torch.round(landmarks * scaling_factors)
 
-        # saving metadata
-        data[self.meta_keys[0]] = {"original_size": np.array(original_size)}
+        data[self.meta_keys[0]] = {"original_size": (original_height, original_width)}
         data[self.meta_keys[1]] = {"scaling_factors": scaling_factors}
 
         return data
 
     def inverse(self, data):
         """
-        Inverse the resizing.
+        Inverse the resizing operation for both image and landmarks.
         """
-        print(data )
+        for meta_key in self.meta_keys:
+            if meta_key not in data:
+                raise KeyError(f"Missing metadata key '{meta_key}' in data.")
+
         image_meta, landmarks_meta = data[self.meta_keys[0]], data[self.meta_keys[1]]
         original_size = image_meta["original_size"]
         scaling_factors = landmarks_meta["scaling_factors"]
@@ -103,6 +106,7 @@ class ResizeWithLandmarksd(Resize):
 
         data[self.keys[0]] = inverted_image
         data[self.keys[1]] = inverted_landmarks
+
         return data
 
 
