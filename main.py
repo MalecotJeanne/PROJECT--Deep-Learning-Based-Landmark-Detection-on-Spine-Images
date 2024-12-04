@@ -17,6 +17,8 @@ from test import test_model
 from training import train_model
 from transforms import testing_transforms, training_transforms
 from utils import get_last_folder, load_config, load_data, save_dataset
+from monai.transforms import Compose, LoadImaged
+from monai.data import PILReader
 
 
 # Parse the arguments
@@ -122,11 +124,10 @@ def main():
 
     # Create dataset and dataloader
     transforms_dict = config["transforms"]
-    transforms = (
-        training_transforms(transforms_dict)
-        if args.phase == "train"
-        else testing_transforms(transforms_dict)
-    )
+    transforms = Compose([
+        LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
+        training_transforms(transforms_dict) if args.phase == "train" else testing_transforms(transforms_dict)
+    ])
     dataset = Dataset(data=data_dict, transform=transforms)
 
     # save the dataset images

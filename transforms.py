@@ -33,7 +33,7 @@ def testing_transforms(transforms_dict):
     """
     return Compose(
         [
-            LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
+            #LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
             CopyItemsd(keys=["image", "landmarks"], names=["image_meta_dict", "landmarks_meta_dict"]),
             ResizeWithLandmarksd(
