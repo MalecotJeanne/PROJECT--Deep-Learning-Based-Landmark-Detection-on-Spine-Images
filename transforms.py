@@ -73,7 +73,6 @@ class ResizeWithLandmarksd(InvertibleTransform):
         self.align_corners = align_corners
         self.keys = keys
         self.meta_keys = meta_keys
-        
 
     def __call__(self, data):
 
@@ -81,7 +80,7 @@ class ResizeWithLandmarksd(InvertibleTransform):
         original_height, original_width = image.shape[-2], image.shape[-1]
         original_size = (original_height, original_width)
 
-        resized_image = resize(image, self.spatial_size, mode=self.mode, align_corners=self.align_corners)
+        resized_image = resize(image, self.spatial_size, mode=self.mode, align_corners=self.align_corners, dtype=None, input_ndim=2, anti_aliasing=True, anti_aliasing_sigma=1.5, lazy=False, transform_info=None)
         resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
         data[self.keys[0]] = resized_image
 
@@ -98,7 +97,7 @@ class ResizeWithLandmarksd(InvertibleTransform):
         return data
 
     def inverse(self, data):
-        
+
         for meta_key in self.meta_keys:
             if meta_key not in data:
                 raise KeyError(f"Missing metadata key '{meta_key}' in data.")
@@ -111,7 +110,18 @@ class ResizeWithLandmarksd(InvertibleTransform):
         )
 
         image = data[self.keys[0]]
-        inverted_image = resize(image, original_size, mode=self.mode, align_corners=self.align_corners)
+        inverted_image = resize(
+            image,
+            original_size,
+            mode=self.mode,
+            align_corners=self.align_corners,
+            dtype=None,
+            input_ndim=2,
+            anti_aliasing=True,
+            anti_aliasing_sigma=1.5,
+            lazy=False,
+            transform_info=None,
+        )
 
         landmarks = data[self.keys[1]]
         inverted_landmarks = torch.round(landmarks / scaling_factors)
