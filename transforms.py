@@ -5,7 +5,7 @@ Author: Jeanne Malécot
 
 import torch
 import einops
-from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd
+from monai.transforms import Resize, Compose, LoadImaged, EnsureChannelFirstd, CopyItemsd
 from monai.data import PILReader
 import numpy as np
 
@@ -35,12 +35,13 @@ def testing_transforms(transforms_dict):
         [
             LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
+            CopyItemsd(keys=["image", "landmarks"], names=["image_meta_dict", "landmarks_meta_dict"]),
             ResizeWithLandmarksd(
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
                 mode=transforms_dict["resizing"]["interpolation"],
                 keys=["image", "landmarks"],
                 meta_keys=["image_meta_dict", "landmarks_meta_dict"],
-            ), 
+            ),
         ]
     )
 
