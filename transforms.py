@@ -46,10 +46,9 @@ def testing_transforms(transforms_dict):
     )
 
 
-class ResizeWithLandmarksd(Resize, InvertibleTransform):
+class ResizeWithLandmarksd(InvertibleTransform):
     """
-    Resize the image and the landmarks accordingly.
-    Based on the Resize transform from MONAI.
+    Resize the image and the landmarks accordingly, using the Resize transform from MONAI.
     """
 
     def __init__(
@@ -60,46 +59,60 @@ class ResizeWithLandmarksd(Resize, InvertibleTransform):
         keys=["image", "landmarks"],
         meta_keys=["image_meta_dict", "landmarks_meta_dict"],
     ):
-        super().__init__(
-            spatial_size=spatial_size, mode=mode, align_corners=align_corners
-        )
+        """
+        Args:
+            spatial_size: The target spatial size for resizing.
+            mode: Interpolation mode for resizing images.
+            align_corners: Whether to align corners during resizing.
+            keys: Keys for the image and landmarks in the input dictionary.
+            meta_keys: Metadata keys to store original sizes and scaling factors.
+        """
+        self.spatial_size = spatial_size
+        self.mode = mode
+        self.align_corners = align_corners
         self.keys = keys
         self.meta_keys = meta_keys
+        self.resize = Resize(
+            spatial_size=spatial_size, mode=mode, align_corners=align_corners
+        )
 
-    def __call__(self, data, **kwargs):
+    def __call__(self, data):
 
-        image, landmarks = data[self.keys[0]], data[self.keys[1]]
+        image = data[self.keys[0]]
         original_height, original_width = image.shape[-2], image.shape[-1]
-        resized_image = super().__call__(image, **kwargs)
-        resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
+        original_size = (original_height, original_width)
 
+        resized_image = self.resize(image)
+        resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
+        data[self.keys[0]] = resized_image
+
+        landmarks = data[self.keys[1]]
         scaling_factors = torch.tensor(
             [resized_width / original_width, resized_height / original_height],
             dtype=landmarks.dtype,
         )
-
-        data[self.keys[0]] = resized_image
         data[self.keys[1]] = torch.round(landmarks * scaling_factors)
 
-        data[self.meta_keys[0]] = {"original_size": (original_height, original_width)}
-        data[self.meta_keys[1]] = {"scaling_factors": scaling_factors}
+        data[self.meta_keys[0]] = {"original_size": original_size}
+        data[self.meta_keys[1]] = {"scaling_factors": scaling_factors.numpy()}
 
         return data
 
     def inverse(self, data):
-        """
-        Inverse the resizing operation for both image and landmarks.
-        """
+        
         for meta_key in self.meta_keys:
             if meta_key not in data:
                 raise KeyError(f"Missing metadata key '{meta_key}' in data.")
 
-        image_meta, landmarks_meta = data[self.meta_keys[0]], data[self.meta_keys[1]]
+        image_meta = data[self.meta_keys[0]]
+        landmarks_meta = data[self.meta_keys[1]]
         original_size = image_meta["original_size"]
-        scaling_factors = landmarks_meta["scaling_factors"]
+        scaling_factors = torch.tensor(
+            landmarks_meta["scaling_factors"], dtype=torch.float32
+        )
 
         image = data[self.keys[0]]
-        inverted_image = super().__call__(image, spatial_size=original_size)
+        inverted_image = self.resize(image, spatial_size=original_size)
 
         landmarks = data[self.keys[1]]
         inverted_landmarks = torch.round(landmarks / scaling_factors)
