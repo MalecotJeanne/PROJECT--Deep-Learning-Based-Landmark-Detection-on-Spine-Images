@@ -40,8 +40,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
     model.to(device)
     model.eval()
 
-    print("dataset item", dataset[0])
-
     # Create the data loader
     test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
@@ -99,7 +97,6 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 "image_meta_dict": image_meta_dict,
                 "landmarks_meta_dict": landmarks_meta_dict,
             }
-            print(new_batch)
             new_batch = test_transfo.inverse(new_batch)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
