@@ -101,7 +101,7 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
 
-            mini_dataset = {"image": image[0], "landmarks": pred_landmarks[0]}    
+            mini_dataset = [{"image": image[0], "landmarks": pred_landmarks[0]}]    
             save_dataset(mini_dataset, os.path.join(results_dir, "testing_images"))
 
 
