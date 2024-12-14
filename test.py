@@ -97,20 +97,11 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 "image_meta_dict": image_meta_dict,
                 "landmarks_meta_dict": landmarks_meta_dict,
             }
+            print(pred_landmarks.shape)
             new_batch = test_transfo.inverse(new_batch)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
-            print(image.shape)
             print(pred_landmarks.shape)
-
-            # #save images with landmarks
-            # image = image.cpu().numpy()
-            # pred_landmarks = pred_landmarks.cpu().numpy()
-
-            # image = normalize_image(image)
-            # image = (image * 255).astype("uint8")
-
-            # pred_landmarks = pred_landmarks.astype("int")
 
             mini_dataset = {"image": image, "landmarks": pred_landmarks}    
             save_dataset(mini_dataset, os.path.join(results_dir, "testing_images"))
