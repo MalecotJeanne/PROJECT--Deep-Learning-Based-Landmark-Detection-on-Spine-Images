@@ -97,13 +97,11 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
                 "image_meta_dict": image_meta_dict,
                 "landmarks_meta_dict": landmarks_meta_dict,
             }
-            print(pred_landmarks.shape)
             new_batch = test_transfo.inverse(new_batch)
             image = new_batch["image"]
             pred_landmarks = batch["landmarks"]
-            print(pred_landmarks.shape)
 
-            mini_dataset = {"image": image, "landmarks": pred_landmarks}    
+            mini_dataset = {"image": image[0], "landmarks": pred_landmarks[0]}    
             save_dataset(mini_dataset, os.path.join(results_dir, "testing_images"))
 
 

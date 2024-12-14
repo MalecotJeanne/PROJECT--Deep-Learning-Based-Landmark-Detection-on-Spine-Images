@@ -146,7 +146,6 @@ def save_dataset(dataset, save_dir):
 
         landmarks = data["landmarks"].detach().cpu().numpy()
         for landmark in landmarks:
-            print(landmark)
             cv2.circle(
                 image, (int(landmark[0]), int(landmark[1])), 1, (0, 255, 0), -1
             )
