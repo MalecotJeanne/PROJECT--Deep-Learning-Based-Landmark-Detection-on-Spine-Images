@@ -6,6 +6,7 @@ Author: Jeanne Malécot
 import torch
 import torch.nn as nn   
 import numpy as np
+from monai.losses import FocalLoss
 
 def pick_criterion(name):
     """
@@ -38,6 +39,13 @@ def pick_criterion(name):
         or name == "BCE"
     ):
         criterion = torch.nn.BCELoss()
+    elif (
+        name == "focal"
+        or name == "FocalLoss"
+        or name == "Focal"
+    ):
+        criterion = FocalLoss(gamma = 4.0, reduction ="mean")
+
     elif name == "mixed" or name == "MixedLoss":
         criterion = MixedLoss()
     else:
@@ -81,7 +89,6 @@ class MixedLoss(nn.Module):
 
     def forward(self, pred, target):
         return self.alpha * self.distance_loss(pred, target) + (1 - self.alpha) * self.mse_loss(pred, target)
-
 
 class AdaptiveWingLoss(nn.Module):
     """

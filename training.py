@@ -5,6 +5,7 @@ Author: Jeanne Malécot
 import os
 import sys
 import time
+import re 
 
 import torch
 from loguru import logger
@@ -65,9 +66,22 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
     # Init the wandb logger
-    experiment_name = os.path.basename(log_path).split(".")[0]
-    wandb.init(project="PRIM-project", config=config)
-    wandb.run.name = experiment_name
+    if os.listdir(chkpt_dir):
+        print("resume wandb")
+        url_pattern = r"https://wandb\.ai/\S+"
+        with open(log_path, "r") as file:
+            log_content = file.read()
+        url = re.findall(url_pattern, log_content)[0]
+        #use os to make url a path
+        print(url)
+        id_wandb = os.path.basename(url)
+        print(id_wandb) 
+        wandb.init(project="PRIM-project", id = id_wandb, resume = "allow" ,config=config)
+        
+    else:
+        experiment_name = os.path.basename(log_path).split(".")[0]
+        wandb.init(project="PRIM-project", config=config, resume = "allow")
+        wandb.run.name = experiment_name
 
     # Split the dataset into training and validation sets
     train_size = config["train"]["train_size"]
@@ -83,14 +97,21 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     start_epoch = 0
     # Load the model from a checkpoint if provided
     if os.listdir(chkpt_dir):
-        chkpt_dir = os.path.join(chkpt_dir, "last_epoch.pt")
-        checkpoint = torch.load(chkpt_dir)
+
+        with open(os.path.join(chkpt_dir, "last_epoch.pt"), "rb") as f:
+            checkpoint = torch.load(f)
+
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         
-        print(f"\n----- Resuming training from epoch {start_epoch} -----\n")
-        logger.info(f"\n----- Resuming training from epoch {start_epoch} -----\n")
+        print(f"\n----- Resuming training from epoch {start_epoch+1} -----\n")
+        with open(log_path, "a") as log_file:
+            log_file.write(f"\n----- Resuming training from epoch {start_epoch+1} -----\n")
+
+
+        del checkpoint
+        torch.cuda.empty_cache()
         
     else: 
         print(f"\n====================\nStarting training...\n====================\n")
@@ -106,6 +127,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
     best_val_loss = float("inf")
     best_val_accuracy = -float("inf")
+
     for epoch in range(start_epoch, n_epochs):
 
         model.train()
@@ -128,22 +150,24 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             #save ground truth heatmaps at the first epoch
             if epoch == 0 and loss_method == "heatmap":
                 for b in range(len(outputs)):
-                    name = batch["image_meta_dict"]["name"][b]
-                    save_heatmaps(
-                        gtruths_[b],
-                        os.path.join(results_dir, f"gt_heatmaps/{name}"),
-                        basename="ld",
-                    )
+                    if b % 100 == 0:
+                        name = batch["image_meta_dict"]["name"][b]
+                        save_heatmaps(
+                            gtruths_[b],
+                            os.path.join(results_dir, f"gt_heatmaps/{name}"),
+                            basename="ld",
+                        )
 
             #save heatmaps every 10 epochs
             if epoch % 10 == 0:
                 for b in range(len(outputs)):
-                    name = batch["image_meta_dict"]["name"][b]
-                    save_heatmaps(
-                        outputs[b],
-                        os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}/{name}"),
-                        basename="ld",
-                    )
+                    if b % 100 == 0: 
+                        name = batch["image_meta_dict"]["name"][b]
+                        save_heatmaps(
+                            outputs[b],
+                            os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}/{name}"),
+                            basename="ld",
+                        )
 
             loss = criterion(outputs_, gtruths_)
             loss.backward()
@@ -212,12 +236,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 #save heatmaps every 10 epochs
                 if epoch % 10 == 0:
                     for b in range(len(outputs)):
-                        name = batch["image_meta_dict"]["name"][b]
-                        save_heatmaps(
-                            outputs[b],
-                            os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}/{name}"),
-                            basename="ld",
-                        )
+                        if b % 100 == 0:
+                            name = batch["image_meta_dict"]["name"][b]
+                            save_heatmaps(
+                                outputs[b],
+                                os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}/{name}"),
+                                basename="ld",
+                            )
 
                 loss = criterion(outputs_, gtruths_)
                 val_loss += loss.item()
@@ -232,6 +257,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 # Delete unnecessary variables
                 del inputs, landmarks, outputs_, gtruths_, pred_landmarks, true_landmarks, loss
                 torch.cuda.empty_cache()
+
+            
 
         val_loss /= len(val_loader)
         val_accuracy /= len(val_loader)
@@ -282,16 +309,16 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_accuracy.pt"))
             best_val_accuracy = val_accuracy
 
+         # Save the last model checkpoint
+        checkpoint = {
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+        }
+        torch.save(checkpoint, os.path.join(chkpt_dir, f"last_epoch.pt"))
+
         # empty cuda cache
         torch.cuda.empty_cache()
-
-    # Save the last model checkpoint
-    checkpoint = {
-        "epoch": epoch,
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-    }
-    torch.save(checkpoint, os.path.join(chkpt_dir, f"last_epoch.pt"))
 
     logger.success("Finished Training: Youpi!")
     logger.info(f"--- Best validation loss: {best_val_loss}")
