@@ -14,7 +14,8 @@ import wandb
 
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
-from losses import AdaptiveWingLoss, DistanceLoss, LandmarkAccuracy
+
+from metrics import pick_criterion, pick_accuracy
 from models.utils import make_landmarks, make_same_type
 from utils import save_heatmaps, wandb_img
 
@@ -30,45 +31,38 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         device (str): the device to use for training
         log_path (str): the path to the log file
     """
-    logger.add(log_path, mode="a")
+    # logger.add(log_path, mode="a")
 
     lr = config["train"]["learning_rate"]
     n_epochs = config["train"]["epochs"]
 
     # Set the loss criterion
     criterion_name = config["train"]["criterion"]
-    if criterion_name == "mse" or criterion_name == "MSE":
-        criterion = torch.nn.MSELoss()
-    elif criterion_name == "distance" or criterion_name == "DistanceLoss":
-        criterion = DistanceLoss()
-    elif (
-        criterion_name == "adaptive_wing"
-        or criterion_name == "AdaptiveWing"
-        or criterion_name == "AdapWingLoss"
-    ):
-        criterion = AdaptiveWingLoss()
-    elif criterion_name == "l1" or criterion_name == "L1":
-        criterion = torch.nn.L1Loss()
-    elif (
-        criterion_name == "cross_entropy_loss"
-        or criterion_name == "CrossEntropyLoss"
-        or criterion_name == "CELoss"
-    ):
-        criterion = torch.nn.CrossEntropyLoss()
-    else:
-        logger.error(f"Criterion {criterion_name} not supported")
-        return
+    criterion, supported_criterion = pick_criterion(criterion_name)
+    if not supported_criterion:
+        logger.error(f"Criterion {criterion_name} not supported. Using MSEloss instead.")
+        
+    # Set the accuracy metric
+    accuracy_name = config["train"]["accuracy"]
+    accuracy, supported_accuracy = pick_accuracy(accuracy_name)
+    if not supported_accuracy:
+        logger.error(f"Accuracy {accuracy_name} not supported. Using NMEaccuracy instead.")
 
     # Set the optimizer
     optimizer_name = config["train"]["optimizer"]
     if optimizer_name == "adam" or optimizer_name == "Adam" or optimizer_name == "ADAM":
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     else:
-        logger.error(f"Optimizer {optimizer_name} not supported")
-        return
+        logger.error(f"Optimizer {optimizer_name} not supported. Using Adam instead.")  
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    accuracy_name = config["train"]["accuracy"]
-    logger.warning(f"Accuracy not implemented yet")
+    # Set the scheduler
+    scheduler = config["train"]["scheduler"]
+    scheduler_type = scheduler["type"]
+    step_size = scheduler["step_size"]
+    gamma = scheduler["gamma"]
+    if scheduler_type == "step_lr":
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
 
     # Init the wandb logger
     experiment_name = os.path.basename(log_path).split(".")[0]
@@ -90,30 +84,28 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     # Load the model from a checkpoint if provided
     if os.listdir(chkpt_dir):
         chkpt_dir = os.path.join(chkpt_dir, "last_epoch.pt")
-        logger.info(f"Loading model from checkpoint: {chkpt_dir}")
         checkpoint = torch.load(chkpt_dir)
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
-    else:
-        logger.info("No checkpoint provided. Training from scratch.")
+        
+        print(f"\n----- Resuming training from epoch {start_epoch} -----\n")
+        logger.info(f"\n----- Resuming training from epoch {start_epoch} -----\n")
+        
+    else: 
+        print(f"\n====================\nStarting training...\n====================\n")
+        with open(log_path, "a") as log_file:
+            log_file.write("\n====================\nStarting training...\n====================\n\n")
 
     model.to(device)
 
     wandb.watch(model)
     logger.info(f"To track model with wandb, go to: {wandb.run.get_url()}")
 
-    # training
-    print(f"\n====================\nStarting training...\n====================\n")
-    # write in the log file
-    with open(log_path, "a") as log_file:
-        log_file.write(
-            f"\n====================\nStarting training...\n====================\n\n"
-        )
-
     loss_method = config["train"]["loss_method"]
 
     best_val_loss = float("inf")
+    best_val_accuracy = -float("inf")
     for epoch in range(start_epoch, n_epochs):
 
         model.train()
@@ -131,9 +123,29 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.zero_grad()
 
             outputs = model(inputs)  # the outputs are heatmaps !  	
-            outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
+            outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, device)
 
-            loss = criterion(outputs_, landmarks_)
+            #save ground truth heatmaps at the first epoch
+            if epoch == 0 and loss_method == "heatmap":
+                for b in range(len(outputs)):
+                    name = batch["image_meta_dict"]["name"][b]
+                    save_heatmaps(
+                        gtruths_[b],
+                        os.path.join(results_dir, f"gt_heatmaps/{name}"),
+                        basename="ld",
+                    )
+
+            #save heatmaps every 10 epochs
+            if epoch % 10 == 0:
+                for b in range(len(outputs)):
+                    name = batch["image_meta_dict"]["name"][b]
+                    save_heatmaps(
+                        outputs[b],
+                        os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}/{name}"),
+                        basename="ld",
+                    )
+
+            loss = criterion(outputs_, gtruths_)
             loss.backward()
             optimizer.step()
          
@@ -141,13 +153,13 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
             pred_landmarks = make_landmarks(outputs)
             true_landmarks = landmarks.cpu().detach().numpy()
-            train_accuracy += LandmarkAccuracy(10).evaluate(pred_landmarks, true_landmarks)
+            train_accuracy += accuracy(pred_landmarks, true_landmarks)
 
             # Empty the CUDA cache
             torch.cuda.empty_cache()
 
             # Delete unnecessary variables
-            del inputs, landmarks, outputs_, landmarks_, pred_landmarks, true_landmarks, loss        
+            del inputs, landmarks, outputs_, gtruths_, pred_landmarks, true_landmarks, loss        
             torch.cuda.empty_cache()
 
         train_loss /= len(train_loader)
@@ -172,15 +184,12 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         with open(log_path, "a") as log_file:
             log_file.write(epoch_message)
 
-        # saving heatmaps
-        save_heatmaps(
-            outputs[-1],
-            os.path.join(results_dir, f"training_heatmaps/epoch_{epoch+1}"),
-            basename="ld",
-        )
         # save normalized heatmaps in wandb
         for i in range(len(outputs[-1])):
             wandb.log({"training_heatmaps": wandb_img(outputs[-1][i], cmap="jet", caption=f"heatmap_{i}")})
+
+        # Step the scheduler
+        scheduler.step()
 
         # validation
         model.eval()
@@ -198,20 +207,30 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 inputs, landmarks = inputs.to(device), landmarks.to(device)
 
                 outputs = model(inputs)
-                outputs_, landmarks_ = make_same_type(outputs, landmarks, loss_method, device)
+                outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, device)
 
-                loss = criterion(outputs_, landmarks_)
+                #save heatmaps every 10 epochs
+                if epoch % 10 == 0:
+                    for b in range(len(outputs)):
+                        name = batch["image_meta_dict"]["name"][b]
+                        save_heatmaps(
+                            outputs[b],
+                            os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}/{name}"),
+                            basename="ld",
+                        )
+
+                loss = criterion(outputs_, gtruths_)
                 val_loss += loss.item()
 
                 pred_landmarks = make_landmarks(outputs)
                 true_landmarks = landmarks.cpu().detach().numpy()
-                val_accuracy += LandmarkAccuracy(10).evaluate(pred_landmarks, true_landmarks)
+                val_accuracy += accuracy(pred_landmarks, true_landmarks)
 
                 # Empty the CUDA cache
                 torch.cuda.empty_cache()
 
                 # Delete unnecessary variables
-                del inputs, landmarks, outputs_, landmarks_, pred_landmarks, true_landmarks, loss
+                del inputs, landmarks, outputs_, gtruths_, pred_landmarks, true_landmarks, loss
                 torch.cuda.empty_cache()
 
         val_loss /= len(val_loader)
@@ -239,12 +258,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         with open(log_path, "a") as log_file:
             log_file.write(epoch_message)
 
-        # saving heatmaps
-        save_heatmaps(
-            outputs[-1],
-            os.path.join(results_dir, f"validation_heatmaps/epoch_{epoch+1}"),
-            basename="ld",
-        )
         # save heatmaps in wandb
         for i in range(len(outputs[-1])):
             wandb.log({"validation_heatmaps": wandb_img(outputs[-1][i], cmap="jet", caption=f"heatmap_{i}")})
@@ -259,6 +272,16 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_loss.pt"))
             best_val_loss = val_loss
 
+        if val_accuracy > best_val_accuracy:
+            # Save the model checkpoint
+            checkpoint = {
+                "epoch": epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+            }
+            torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_accuracy.pt"))
+            best_val_accuracy = val_accuracy
+
         # empty cuda cache
         torch.cuda.empty_cache()
 
@@ -269,4 +292,9 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         "optimizer_state_dict": optimizer.state_dict(),
     }
     torch.save(checkpoint, os.path.join(chkpt_dir, f"last_epoch.pt"))
-    logger.success("Finished Training: Youpi")
+
+    logger.success("Finished Training: Youpi!")
+    logger.info(f"--- Best validation loss: {best_val_loss}")
+    logger.info(f"--- Best validation accuracy: {best_val_accuracy}")
+
+    wandb.finish()

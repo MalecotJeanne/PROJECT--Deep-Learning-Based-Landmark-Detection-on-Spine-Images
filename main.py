@@ -13,7 +13,7 @@ from loguru import logger
 from monai.data import Dataset
 
 from models import init_model
-from test import test_model
+from inference import test_model
 from training import train_model
 from transforms import testing_transforms, training_transforms
 from utils import get_last_folder, load_config, load_data, save_dataset
@@ -50,7 +50,7 @@ def main():
     """
     Main function to train or test the model
     """
-    # check if the logs directory exists
+
     results_dir = args.results_dir
     execution_name = (
         f"{args.model}_{args.phase}_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
@@ -135,7 +135,7 @@ def main():
     if not os.path.exists(dataset_dir):
         os.makedirs(dataset_dir)
         
-    save_dataset(dataset, dataset_dir)
+    save_dataset(dataset, dataset_dir, "transformed")
 
     # Load the model
     model = init_model(args.model, config["model"])
@@ -178,8 +178,15 @@ def main():
         if chkpt_dir is None:
             logger.error("No checkpoint directory found.")
             return
+        
+        train_results_dir = chkpt_dir.replace("checkpoints", "results")
+        train_results_dir = os.path.join(train_results_dir, datetime.now().strftime('%Y-%m-%d_%H-%M'))
+        if not os.path.exists(train_results_dir):
+            os.makedirs(train_results_dir)
+        logs_filepath = os.path.join(train_results_dir, log_filename)
+
         test_model(
-            dataset, model, chkpt_dir, results_dir, config, device, logs_filepath
+            dataset, model, chkpt_dir, train_results_dir, config, device, logs_filepath
         )
 
 

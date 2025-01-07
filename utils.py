@@ -5,21 +5,14 @@ Author: Jeanne Malécot
 import glob
 import os
 from io import BytesIO
-import glob
-import os
-from io import BytesIO
 
-import cv2
-import matplotlib.pyplot as plt
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
 import yaml
-import wandb
-import yaml
-
+from tqdm import tqdm
 from scipy.io import loadmat
 
 
@@ -31,11 +24,12 @@ def load_data(path_data, path_labels):
     """
     # Load the data
     data = []
-    for path_img in glob.glob(os.path.join(path_data + "/*.jpg")):
-        data.append(path_img)
-    # Load the labels
     labels = []
-    for path_label in glob.glob(os.path.join(path_labels + "/*.mat")):
+    names = []
+    for path_img in glob.glob(os.path.join(path_data + "/*.jpg")):
+        names.append(os.path.basename(path_img[:-4]))
+        data.append(path_img)
+        path_label = os.path.join(path_labels, os.path.basename(path_img).replace(".jpg", ".jpg.mat"))
         labels.append(path_label)
 
     # Check if the data and labels have the same length
@@ -46,18 +40,18 @@ def load_data(path_data, path_labels):
 
     labels = load_labels_mat(labels)
 
-    dict_data = create_dict(data, labels)
+    dict_data = create_dict(data, labels, names)
 
     return dict_data
 
 
-def create_dict(data, labels):
+def create_dict(data, labels, names):
     """
     Create a dictionary with the data and labels suitable for the Monai Dataset class
     """
-    data_dict = [
-        {"image": img, "landmarks": torch.Tensor(lbl), "image_meta_dict":None, "landmarks_meta_dict":None } for img, lbl in zip(data, labels)
-    ]
+    data_dict = []
+    for i in range(len(data)):
+        data_dict.append({"image": data[i], "landmarks": torch.Tensor(labels[i]), "image_meta_dict":{"name": names[i]}, "landmarks_meta_dict":None})
     return data_dict
 
 def load_labels_mat(dir_list):
@@ -102,7 +96,7 @@ def get_last_folder(path, model_name):
     """
     list_dir = sort_by_date(path)
     for dir in list_dir:
-        if model_name in dir and "train" in dir and os.path.isdir(os.path.join(path, dir)):
+        if model_name in dir and os.path.isdir(os.path.join(path, dir)):
             return dir
     return None
 
@@ -126,15 +120,14 @@ def save_heatmaps(images, save_dir, basename="image"):
             save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
         )
 
-def save_dataset(dataset, save_dir):
+def save_dataset(dataset, save_dir, suffix):
     """
     Save the dataset in the given directory
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    for i, data in enumerate(dataset):
+    for i, data in enumerate(tqdm(dataset, desc="Saving dataset")):
         image = data["image"].detach().cpu().numpy()
-        #image = normalize_image(image)
 
         #create image in cv2 format
         if len(image.shape) == 2:  # Check if the image is single-channel
@@ -145,12 +138,14 @@ def save_dataset(dataset, save_dir):
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         landmarks = data["landmarks"].detach().cpu().numpy()
+        c_radius = max(image.shape) // 500
         for landmark in landmarks:
             cv2.circle(
-                image, (int(landmark[0]), int(landmark[1])), 1, (0, 255, 0), -1
+                image, (int(landmark[0]), int(landmark[1])), c_radius, (0, 255, 0), c_radius*2
             )
 
-        save_path = os.path.join(save_dir, f"image_{i}.jpg")
+        name = data["image_meta_dict"]["name"]
+        save_path = os.path.join(save_dir, f"{name}_{suffix}.jpg")
         cv2.imwrite(save_path, image)
 
 def wandb_img(tensor, cmap="jet", caption="image"):

@@ -19,7 +19,8 @@ def make_same_type(outputs, landmarks, loss_method, device="cpu"):
         map_size = outputs.shape[-2:]
         heatmap_from_landmarks = ld2hm(landmarks, map_size, device)
 
-        return outputs, heatmap_from_landmarks
+        return torch.sigmoid(outputs), heatmap_from_landmarks
+    
     else:
         output_landmarks = hm2ld(outputs, device)
         return output_landmarks, landmarks
@@ -70,6 +71,9 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
     kernel_ratio = 0.05
     kernel_size = kernel_ratio * min(spatial_size)
 
+    context_ratio = 0.5
+    context_size = context_ratio * np.array([spatial_size[1], spatial_size[0]])
+
     batch_size, n_landmarks, _ = landmarks.shape
     h, w = spatial_size
     
@@ -77,7 +81,7 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
 
     for batch in range(batch_size):
         for ld in range(n_landmarks):
-            x, y = landmarks[batch, ld]
+            y, x = landmarks[batch, ld]
             x = int(x)
             y = int(y)
 
@@ -85,9 +89,10 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
                 continue
 
             heatmap = np.zeros((h, w))
-            xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
-            heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / 2 * kernel_size**2) 
-
+            xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')    
+            context = np.exp(-(((xx - x) ** 2) / (2*context_size[1]**2) + ((yy - y)**2) / (2*context_size[0]**2)))
+            heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * kernel_size**2)) + 0.5*context
+            heatmap = heatmap / np.max(heatmap)
             heatmaps[batch, ld] = heatmap
             
 
@@ -95,10 +100,9 @@ def ld2hm(landmarks, spatial_size=(512, 1024), device="cpu"):
     heatmaps = torch.tensor(
         heatmaps, dtype=torch.float32, device=device, requires_grad=True
     )
-
     return heatmaps
 
-def make_landmarks(outputs):
+def make_landmarks(outputs, device="cpu"):
     """
     Convert the outputs to landmarks, taking the argmax.
     This function is used for the evaluation of the model, not for the backpropagation (discontinuous).
@@ -112,8 +116,8 @@ def make_landmarks(outputs):
         for j in range(n_landmarks):
             
             heatmap = outputs[i, j]
-            x, y = np.unravel_index(heatmap.argmax(), heatmap.shape)
+            y, x = np.unravel_index(heatmap.argmax(), heatmap.shape)
             landmarks[i, j] = np.array([x, y])
 
-    landmarks = torch.tensor(landmarks, dtype=torch.float32)
+    landmarks = torch.tensor(landmarks, dtype=torch.float32, device=device)
     return landmarks

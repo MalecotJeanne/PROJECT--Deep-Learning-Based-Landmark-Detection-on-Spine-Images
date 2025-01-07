@@ -9,12 +9,13 @@ import os
 import sys
 
 from monai.data import Dataset, PILReader
+from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
 from utils import load_data, load_config, save_dataset
-from transforms import training_transforms, testing_transforms
+from transforms import training_transforms, testing_transforms, ResizeWithLandmarksd
 
 parser = argparse.ArgumentParser(description="Script to test a dataset.")
 
@@ -66,15 +67,20 @@ def main():
     config = load_config(args.config_dir)
 
     transforms_dict = config["transforms"]
-    transforms = (
+    transforms_no_load = (
         training_transforms(transforms_dict)
         if args.phase == "train"
         else testing_transforms(transforms_dict)
     )
+    
+    transforms = Compose([
+        LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
+        transforms_no_load
+    ])
 
     dataset = Dataset(data=data_dict, transform=transforms)
 
-    save_dataset(dataset, save_dir)
+    save_dataset(dataset, save_dir, "transformed")
 
 
 if __name__ == "__main__":

@@ -10,6 +10,8 @@ from monai.transforms.spatial.functional import resize
 from monai.data import PILReader
 import numpy as np
 
+import cv2
+
 
 def training_transforms(transforms_dict):
     """
@@ -17,12 +19,14 @@ def training_transforms(transforms_dict):
     """
     return Compose(
         [
-            LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
+            #LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
+            ClaheNormalizationd(keys=["image"]),
             ResizeWithLandmarksd(
                 spatial_size=tuple(transforms_dict["resizing"]["spatial_size"]),
                 mode=transforms_dict["resizing"]["interpolation"],
                 keys=["image", "landmarks"],
+                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
             ), 
         ]
     )
@@ -34,9 +38,9 @@ def testing_transforms(transforms_dict):
     """
     return Compose(
         [
-            #LoadImaged(keys=["image"], image_only=True, reader=PILReader(reverse_indexing=False)),
+            #LoadImaged(keys=["image"], image_only=True, reader=PILRead(reverse_indexing=False)),
             EnsureChannelFirstd(keys=["image"]),
-            #CopyItemsd(keys=["image", "landmarks"], names=["image_meta_dict", "landmarks_meta_dict"]),
+            ClaheNormalizationd(keys=["image"]),
             ResizeWithLandmarksd(
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
                 mode=transforms_dict["resizing"]["interpolation"],
@@ -46,6 +50,31 @@ def testing_transforms(transforms_dict):
         ]
     )
 
+class ClaheNormalizationd(InvertibleTransform):
+    """
+    Apply CLAHE normalization to the image.
+    TODO: add in config file the parameters for CLAHE
+    """
+    def __init__(
+        self,
+        keys=["image"],
+        clip_limit=2.0,
+        tile_grid_size=(8, 8),
+    ):
+        self.keys = keys
+        self.clip_limit = clip_limit
+        self.tile_grid_size = tile_grid_size
+
+    def __call__(self, data):
+        image = data[self.keys[0]]
+        clahe = cv2.createCLAHE(clipLimit=self.clip_limit, tileGridSize=self.tile_grid_size)
+        image = image.numpy().squeeze().astype(np.uint8)
+        image = clahe.apply(image)
+        data["image"] = torch.tensor(image).unsqueeze(0).float()
+        return data
+    
+    def inverse(self, data):
+        return data
 
 class ResizeWithLandmarksd(InvertibleTransform):
     """
@@ -81,6 +110,7 @@ class ResizeWithLandmarksd(InvertibleTransform):
         original_size = (original_height, original_width)
 
         resized_image = resize(image, self.spatial_size, mode=self.mode, align_corners=self.align_corners, dtype=None, input_ndim=2, anti_aliasing=True, anti_aliasing_sigma=1.5, lazy=False, transform_info=None)
+
         resized_height, resized_width = resized_image.shape[-2], resized_image.shape[-1]
         data[self.keys[0]] = resized_image
 
@@ -91,7 +121,8 @@ class ResizeWithLandmarksd(InvertibleTransform):
         )
         data[self.keys[1]] = torch.round(landmarks * scaling_factors)
 
-        data[self.meta_keys[0]] = {"original_size": original_size}
+        #append to the dict original size
+        data[self.meta_keys[0]].update({"original_size": original_size})
         data[self.meta_keys[1]] = {"scaling_factors": scaling_factors.numpy()}
 
         return data
@@ -105,10 +136,7 @@ class ResizeWithLandmarksd(InvertibleTransform):
         image_meta = data[self.meta_keys[0]]
         landmarks_meta = data[self.meta_keys[1]]
         original_size = image_meta["original_size"]
-        scaling_factors = torch.tensor(
-            landmarks_meta["scaling_factors"], dtype=torch.float32
-        )
-
+        scaling_factors = landmarks_meta["scaling_factors"].clone().detach()
         image = data[self.keys[0]]
         inverted_image = resize(
             image,
@@ -130,7 +158,6 @@ class ResizeWithLandmarksd(InvertibleTransform):
         data[self.keys[1]] = inverted_landmarks
 
         return data
-
 
 def softmax2d(input):
     """

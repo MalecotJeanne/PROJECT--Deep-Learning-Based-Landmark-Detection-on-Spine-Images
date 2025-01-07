@@ -6,6 +6,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.blocks import SEResNetBottleneck
 from monai.networks.nets import HighResBlock
@@ -52,7 +53,6 @@ class HRNet(nn.Module):
         )
         self.bn2 = nn.BatchNorm2d(channels_stage1, momentum=0)
         self.relu = nn.ReLU()
-        self.softmax = nn.Softmax(dim=-1)
 
         # using bottleneck implementation from MONAI -> the expension  is always 4 in this class.
         self.bottleneck1 = SEResNetBottleneck(
@@ -198,6 +198,7 @@ class HRNet(nn.Module):
         """
         Forward pass of the HRNet model.
         """
+
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -206,6 +207,7 @@ class HRNet(nn.Module):
         x = self.relu(x)
 
         x = self.bottleneck1(x)
+        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=True)
 
         x_list = []
         for i in range(self.num_branches_2):
@@ -234,6 +236,7 @@ class HRNet(nn.Module):
         y_list = self.stage4(x_list)
 
         x = self.final_layer(y_list[0])
+        # x = F.relu(x)
 
         return x
 
