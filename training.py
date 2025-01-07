@@ -190,6 +190,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         train_accuracy /= len(train_loader)
         epoch_time = time.time() - epoch_time
 
+        wandb.log({"epoch": epoch})
         wandb.log({"train_loss": train_loss})
         wandb.log({"train_accuracy": train_accuracy})
 

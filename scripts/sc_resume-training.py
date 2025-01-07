@@ -51,7 +51,7 @@ def main():
     model_name = os.path.basename(results_dir)
     model_name = model_name.split("_")[0]
     
-    log_file = [logs_filepath for logs_filepath in os.listdir(results_dir) if file.endswith(".log")][0]
+    log_file = [logs_filepath for logs_filepath in os.listdir(results_dir) if logs_filepath.endswith(".log")][0]
     logs_dir = os.path.join(results_dir, log_file)
 
     logger.add(logs_dir, mode="a")

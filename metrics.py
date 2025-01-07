@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn   
 import numpy as np
 from monai.losses import FocalLoss
+from torch.nn import functional as F
 
 def pick_criterion(name):
     """
@@ -45,7 +46,8 @@ def pick_criterion(name):
         or name == "Focal"
     ):
         criterion = FocalLoss(gamma = 4.0, reduction ="mean")
-
+    elif name == "kld" or name == "KLD" or name =="KLLoss":
+        criterion = KLDivergenceLoss()
     elif name == "mixed" or name == "MixedLoss":
         criterion = MixedLoss()
     else:
@@ -128,6 +130,17 @@ class AdaptiveWingLoss(nn.Module):
             loss = A * delta_y - C
 
         return loss 
+
+class KLDivergenceLoss(nn.Module):
+    def __init__(self):
+        super(KLDivergenceLoss, self).__init__()
+
+    def forward(self, pred, target):
+
+        pred = (pred + 1e-6) / (pred + 1e-6).sum(dim=(-2, -1), keepdim=True)
+        target = (target + 1e-6) / (target + 1e-6).sum(dim=(-2, -1), keepdim=True)
+
+        return F.kl_div(pred.log(), target, reduction="batchmean")
 
 # Accuracy metrics
 
