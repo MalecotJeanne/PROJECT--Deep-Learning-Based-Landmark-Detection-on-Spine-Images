@@ -82,16 +82,6 @@ class DistanceLoss(nn.Module):
     def forward(self, pred, target):
         return torch.mean(torch.abs(pred - target))
     
-class MixedLoss(nn.Module):
-    def __init__(self, alpha=0.5):
-        super(MixedLoss, self).__init__()
-        self.alpha = alpha
-        self.bce_loss = nn.BCELoss()
-        self.mse_loss = nn.MSELoss()
-
-    def forward(self, pred, target):
-        return self.alpha * self.distance_loss(pred, target) + (1 - self.alpha) * self.mse_loss(pred, target)
-
 class AdaptiveWingLoss(nn.Module):
     """
     Adaptation of the Adaptive Wing Loss mentionned in the paper:
@@ -141,6 +131,17 @@ class KLDivergenceLoss(nn.Module):
         target = (target + 1e-6) / (target + 1e-6).sum(dim=(-2, -1), keepdim=True)
 
         return F.kl_div(pred.log(), target, reduction="batchmean")
+
+class MixedLoss(nn.Module):
+    def __init__(self, alpha=0.8):
+        super(MixedLoss, self).__init__()
+        self.alpha = alpha
+        self.kld_loss = KLDivergenceLoss()
+        self.mse_loss = nn.MSELoss()
+
+    def forward(self, pred, target):
+        return self.alpha * self.kld_loss(pred, target) + (1 - self.alpha) * self.mse_loss(pred, target)
+
 
 # Accuracy metrics
 

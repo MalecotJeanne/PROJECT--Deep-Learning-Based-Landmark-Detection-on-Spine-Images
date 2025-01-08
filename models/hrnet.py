@@ -7,6 +7,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
 
 from monai.networks.blocks import SEResNetBottleneck
 from monai.networks.nets import HighResBlock
@@ -28,6 +29,9 @@ class HRNet(nn.Module):
         self.num_classes = config["out_channels"]
         self.channels = config["channels"]
         self.kernel_size = config["kernel_size"]   
+        self.dropout = config["dropout"]
+
+        self.bn_momentum = 0.1
 
         self.reduction = 2 # reduction ratio in the SE block
 
@@ -42,7 +46,7 @@ class HRNet(nn.Module):
             padding=1,
             bias=False,
         )
-        self.bn1 = nn.BatchNorm2d(channels_stage1, momentum=0)
+        self.bn1 = nn.BatchNorm2d(channels_stage1, momentum=self.bn_momentum)
         self.conv2 = nn.Conv2d(
             channels_stage1,
             channels_stage1,
@@ -51,8 +55,9 @@ class HRNet(nn.Module):
             padding=1,
             bias=False,
         )
-        self.bn2 = nn.BatchNorm2d(channels_stage1, momentum=0)
+        self.bn2 = nn.BatchNorm2d(channels_stage1, momentum=self.bn_momentum)
         self.relu = nn.ReLU()
+        self.dropout1 = nn.Dropout(p=self.dropout)
 
         # using bottleneck implementation from MONAI -> the expension  is always 4 in this class.
         self.bottleneck1 = SEResNetBottleneck(
@@ -101,13 +106,31 @@ class HRNet(nn.Module):
 
         # -------------------------------------------------------
         # final layer
-        self.final_layer = nn.Conv2d(
-            in_channels=pre_stage_channels[0],
-            out_channels=self.num_classes,  # nb of landmarks
-            kernel_size=1,
-            stride=1,
-            padding="same",
+        self.final_layer = nn.Sequential(        
+            nn.Conv2d(
+                in_channels=pre_stage_channels[0],
+                out_channels=self.num_classes,  # nb of landmarks
+                kernel_size=1,
+                stride=1,
+                padding="same",
+            ),
+            nn.Dropout(p=self.dropout),
         )
+
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init.kaiming_uniform_(m.weight, nonlinearity="relu")
+                if m.bias is not None:
+                    init.zeros_(m.bias)
+            elif isinstance(m, nn.BatchNorm2d):
+                init.ones_(m.weight)
+                init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight)
+                init.zeros_(m.bias)
 
     def _make_transition_layer(self, num_channels_pre_layer, num_channels_cur_layer):
         """
@@ -134,8 +157,9 @@ class HRNet(nn.Module):
                                 1,
                                 bias=False,
                             ),
-                            nn.BatchNorm2d(num_channels_cur_layer[i]),
+                            nn.BatchNorm2d(num_channels_cur_layer[i], momentum=self.bn_momentum),
                             nn.ReLU(inplace=True),
+                            nn.Dropout(p=self.dropout),
                         )
                     )
                 else:  # no transition needed (existing branch with the same number of channels)
@@ -154,8 +178,9 @@ class HRNet(nn.Module):
                     conv3x3s.append(
                         nn.Sequential(
                             nn.Conv2d(inchannels, outchannels, 3, 2, 1, bias=False),
-                            nn.BatchNorm2d(outchannels),
+                            nn.BatchNorm2d(outchannels, momentum=self.bn_momentum),
                             nn.ReLU(inplace=True),
+                            nn.Dropout(p=self.dropout)
                         )
                     )
                 transition_layers.append(nn.Sequential(*conv3x3s))
@@ -202,6 +227,7 @@ class HRNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        x = self.dropout1(x)
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
@@ -324,7 +350,7 @@ class HighResModule(nn.Module):
                                     stride=1,
                                     bias=False,
                                 ),
-                                nn.BatchNorm2d(self.out_channels[i]),
+                                nn.BatchNorm2d(self.out_channels[i], momentum=0.1),
                                 nn.Upsample(scale_factor=2 ** (j - i), mode="nearest"),
                             )
                         )
@@ -345,7 +371,7 @@ class HighResModule(nn.Module):
                                         padding=1,
                                         bias=False,
                                     ),
-                                    nn.BatchNorm2d(out_channels),
+                                    nn.BatchNorm2d(out_channels, momentum=0.1),
                                 )
                             )
                             in_channels = out_channels

@@ -31,7 +31,6 @@ def training_transforms(transforms_dict):
         ]
     )
 
-
 def testing_transforms(transforms_dict):
     """
     Define the testing transforms.
