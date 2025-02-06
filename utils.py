@@ -51,7 +51,7 @@ def create_dict(data, labels, names):
     """
     data_dict = []
     for i in range(len(data)):
-        data_dict.append({"image": data[i], "landmarks": torch.Tensor(labels[i]), "image_meta_dict":{"name": names[i]}, "landmarks_meta_dict":None})
+        data_dict.append({"image": data[i], "landmarks": torch.Tensor(labels[i]), "image_meta_dict":{"name": names[i]}, "landmarks_meta_dict":{}})
     return data_dict
 
 def load_labels_mat(dir_list):
@@ -103,22 +103,34 @@ def get_last_folder(path, model_name):
 
 ### Image processing functions ###
 
-def save_heatmaps(images, save_dir, basename="image"):
+def save_heatmaps(images, save_dir, basename="image", cmap="jet"):
     """
     Save the images in the given directory
     """
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     n_images = len(images)
-    images_copy = images.clone()
+    if torch.is_tensor(images):
+        images_copy = images.clone()
+    else:
+        images_copy = np.copy(images)
     for i in range(n_images):
-        image = images_copy[i].detach().cpu().numpy()
+        if torch.is_tensor(images_copy[i]):
+            image = images_copy[i].detach().cpu().numpy()
+        else:
+            image = images_copy[i]
         image = normalize_image(image)
         save_path = os.path.join(save_dir, f"{basename}_{i}.jpg")
-        # save the image with cmap jet
-        cv2.imwrite(
-            save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
-        )
+        if cmap == "jet":
+            # save the image with cmap jet
+            cv2.imwrite(
+                save_path, cv2.applyColorMap(image.astype(np.uint8), cv2.COLORMAP_JET)
+            )
+        elif cmap == "gray":
+            # save the image with cmap gray
+            cv2.imwrite(save_path, image)
+        else:
+            raise ValueError("The given cmap is not supported")
 
 def save_dataset(dataset, save_dir, suffix):
     """
@@ -128,6 +140,9 @@ def save_dataset(dataset, save_dir, suffix):
         os.makedirs(save_dir)
     for i, data in enumerate(tqdm(dataset, desc="Saving dataset")):
         image = data["image"].detach().cpu().numpy()
+
+        #normalize between 0 and 1
+        image = normalize_image(image)
 
         #create image in cv2 format
         if len(image.shape) == 2:  # Check if the image is single-channel

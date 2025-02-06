@@ -95,7 +95,7 @@ def main():
     dataset = Dataset(data=data_dict, transform=transforms)
 
     # Load the model
-    model = init_model(model_name, config["model"])
+    model = init_model(model_name, config["model"][args.model])
 
     # Use GPU if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

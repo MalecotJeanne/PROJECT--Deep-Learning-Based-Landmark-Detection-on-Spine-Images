@@ -38,7 +38,7 @@ parser.add_argument(
 parser.add_argument(
     "-config", "--config_dir", default="config.yaml", type=str, help="path to the config file"
 )
-parser.add_argument("--model", choices=["hrnet", "unet"], help="model to use")
+parser.add_argument("--model", choices=["hrnet", "unet", "unet_base"], help="model to use")
 parser.add_argument("--gpu_devices", default="1,2", type=str, help="gpu devices")
 
 args = parser.parse_args()
@@ -124,7 +124,7 @@ def main():
     logger.success("Dataset images saved successfully!")
 
     # Load the model
-    model = init_model(args.model, config["model"])
+    model = init_model(args.model, config["model"][args.model])
 
     # Use GPU if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

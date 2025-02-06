@@ -145,7 +145,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             optimizer.zero_grad()
 
             outputs = model(inputs)  # the outputs are heatmaps !  	
-            outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, device)
+            outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, config['train']['gt_heatmap'], device)
 
             #save ground truth heatmaps at the first epoch
             if epoch == 0 and loss_method == "heatmap":
@@ -232,7 +232,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 inputs, landmarks = inputs.to(device), landmarks.to(device)
 
                 outputs = model(inputs)
-                outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, device)
+                outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, config['train']['gt_heatmap'], device)
 
                 #save heatmaps every 10 epochs
                 if epoch % 10 == 0:

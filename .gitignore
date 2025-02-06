@@ -7,3 +7,4 @@ runs/
 slurms/
 wandb/
 old/
+test_results/

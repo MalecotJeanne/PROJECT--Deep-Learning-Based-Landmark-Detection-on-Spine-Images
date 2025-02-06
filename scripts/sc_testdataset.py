@@ -7,6 +7,7 @@ Author: Jeanne Malécot
 import argparse
 import os
 import sys
+import torch
 
 from monai.data import Dataset, PILReader
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
@@ -33,6 +34,12 @@ parser.add_argument(
     default="train",
     choices=["train", "test"],
     help="to chose to visualize the training or the test transformations",
+)
+parser.add_argument(
+    "--test_inverse",
+    default=True,
+    type=bool,
+    help="to test the inverse transformations",
 )
 
 args = parser.parse_args()
@@ -81,6 +88,17 @@ def main():
     dataset = Dataset(data=data_dict, transform=transforms)
 
     save_dataset(dataset, save_dir, "transformed")
+
+    if args.test_inverse is True:
+        inversed_dataset = []
+        for sample in dataset:
+            sample['landmarks_meta_dict']['scaling_factors'] = torch.from_numpy(sample['landmarks_meta_dict']['scaling_factors'])
+            sample['image'] = sample['image'] 
+            sample = transforms.inverse(sample)   
+            inversed_dataset.append(sample)
+        save_dataset(inversed_dataset, os.path.join(save_dir, "inversed"), "inversed")
+
+
 
 
 if __name__ == "__main__":

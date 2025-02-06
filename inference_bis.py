@@ -16,10 +16,13 @@ from transforms import testing_transforms
 def centeroid(heat, gaussian_thresh = 0.5):
     # Parse center point of connected components
     # Return [p][xy]
-
-    #ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
-    heat = heat > 0
+    ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
     heat = np.array(heat * 255., np.uint8)
+    save_dir = "temp"
+    os.makedirs(save_dir, exist_ok=True)
+    random_nb = np.random.randint(0, 1000)
+    os.makedirs(path.join(save_dir, str(random_nb)), exist_ok=True)
+    cv2.imwrite(path.join(save_dir, str(random_nb), "bin_heatmap.jpg"), heat)
 
     # num: point number + 1 background
     num, labels = cv2.connectedComponents(heat)
@@ -31,7 +34,7 @@ def centeroid(heat, gaussian_thresh = 0.5):
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
         coords.append([cX, cY])
-    return coords, heat
+    return coords
 
 
 def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -84,38 +87,17 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
             inputs, landmarks = inputs.to(device), landmarks.to(device)
 
             outputs = model(inputs)
-            outputs = torch.sigmoid(outputs)
 
-            image_name = batch["image_meta_dict"]["name"][-1]
-
-            np_heats = outputs.cpu().numpy()
-            np_heats = np.clip(np_heats, 0., 1.)[0]     
-            np_heats = np.transpose(np_heats, (1, 2, 0))  
-            
-            coord_list, bin_heats = zip(*[centeroid(np_heats[:, :, c]) for c in range(4)])
-            os.makedirs(path.join(results_dir, "coords"), exist_ok=True)
-
-            with open(path.join(results_dir, "coords", image_name + ".txt"), "w") as file:
-                for i, coords in enumerate(coord_list):
-                    file.write(str(i) + "\n")
-                    for coord in coords:
-                        file.write(str(coord[0]) + " " + str(coord[1]) + "\n")
-
+            # Calculate accuracy
             pred_landmarks = make_landmarks(outputs, device)
             test_accuracy += accuracy(pred_landmarks, landmarks)
 
             # Save heatmaps
+            name = batch["image_meta_dict"]["name"][-1]
             save_heatmaps(
                 outputs[-1],
-                os.path.join(results_dir, f"testing_heatmaps/{image_name}"),
+                os.path.join(results_dir, f"testing_heatmaps/{name}/preds"),
                 basename="ld",
-            )
-            # Save binary heatmaps
-            save_heatmaps(
-                bin_heats,
-                os.path.join(results_dir, f"testing_heatmaps/{image_name}"),
-                basename="ld_bin",
-                cmap="gray",
             )
 
             # Save images with landmarks
@@ -151,4 +133,3 @@ def test_model(dataset, model, chkpt_dir, results_dir, config, device, log_path)
         )
 
     print(f"Testing complete: Accuracy: {test_accuracy:.2f}%\n")
-
