@@ -16,8 +16,8 @@ import wandb
 root_folder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(root_folder_path)
 
-from metrics import pick_criterion, pick_accuracy
-from models.utils import make_landmarks, make_same_type
+from metrics import pick_criterion
+from models.utils import make_same_type
 from utils import save_heatmaps, wandb_img
 
 def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path):
@@ -42,12 +42,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     criterion, supported_criterion = pick_criterion(criterion_name)
     if not supported_criterion:
         logger.error(f"Criterion {criterion_name} not supported. Using MSEloss instead.")
-        
-    # Set the accuracy metric
-    accuracy_name = config["train"]["accuracy"]
-    accuracy, supported_accuracy = pick_accuracy(accuracy_name)
-    if not supported_accuracy:
-        logger.error(f"Accuracy {accuracy_name} not supported. Using NMEaccuracy instead.")
 
     # Set the optimizer
     optimizer_name = config["train"]["optimizer"]
@@ -91,8 +85,8 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
     # Create the data loaders
     logger.info("Creating data loaders...")
-    train_loader = DataLoader(trainset, batch_size=config["batch_size"], shuffle=True)
-    val_loader = DataLoader(valset, batch_size=config["batch_size"], shuffle=False)
+    train_loader = DataLoader(trainset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
+    val_loader = DataLoader(valset, batch_size=config["batch_size"], shuffle=False, num_workers=4)
 
     start_epoch = 0
     # Load the model from a checkpoint if provided
@@ -126,13 +120,11 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
     loss_method = config["train"]["loss_method"]
 
     best_val_loss = float("inf")
-    best_val_accuracy = -float("inf")
 
     for epoch in range(start_epoch, n_epochs):
 
         model.train()
         train_loss = 0.0
-        train_accuracy = 0.0
         epoch_time = time.time()
         for batch in tqdm(
             train_loader,
@@ -175,35 +167,27 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
          
             train_loss += loss.item()
 
-            pred_landmarks = make_landmarks(outputs)
-            true_landmarks = landmarks.cpu().detach().numpy()
-            train_accuracy += accuracy(pred_landmarks, true_landmarks)
-
             # Empty the CUDA cache
             torch.cuda.empty_cache()
 
             # Delete unnecessary variables
-            del inputs, landmarks, outputs_, gtruths_, pred_landmarks, true_landmarks, loss        
+            del inputs, landmarks, outputs_, gtruths_, loss        
             torch.cuda.empty_cache()
 
         train_loss /= len(train_loader)
-        train_accuracy /= len(train_loader)
         epoch_time = time.time() - epoch_time
 
         wandb.log({"epoch": epoch})
         wandb.log({"train_loss": train_loss})
-        wandb.log({"train_accuracy": train_accuracy})
 
         epoch_message = (
             f"Epoch [{epoch+1}/{n_epochs}] \n ----- \n"
             f"Training: \n"
             f"Training Loss: {train_loss:.4f} | "
-            f"Training Accuracy: {train_accuracy:.2f}% | "
             f"Time: {epoch_time:.2f}s \n"
         )
         print(
             f"Training Loss: {train_loss:.4f} | "
-            f"Training Accuracy: {train_accuracy:.2f}% | "
             f"Time: {epoch_time:.2f}s"
         )
         with open(log_path, "a") as log_file:
@@ -219,7 +203,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
         # validation
         model.eval()
         val_loss = 0.0
-        val_accuracy = 0.0
 
         val_time = time.time()
         with torch.no_grad():
@@ -248,37 +231,29 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
                 loss = criterion(outputs_, gtruths_)
                 val_loss += loss.item()
 
-                pred_landmarks = make_landmarks(outputs)
-                true_landmarks = landmarks.cpu().detach().numpy()
-                val_accuracy += accuracy(pred_landmarks, true_landmarks)
-
                 # Empty the CUDA cache
                 torch.cuda.empty_cache()
 
                 # Delete unnecessary variables
-                del inputs, landmarks, outputs_, gtruths_, pred_landmarks, true_landmarks, loss
+                del inputs, landmarks, outputs_, gtruths_, loss
                 torch.cuda.empty_cache()
 
             
 
         val_loss /= len(val_loader)
-        val_accuracy /= len(val_loader)
         val_time = time.time() - val_time
 
         wandb.log({"val_loss": val_loss})
-        wandb.log({"val_accuracy": val_accuracy})
 
         epoch_message = (
             f"Validation: \n"
             f"Validation Loss: {val_loss:.4f} | "
-            f"Validation Accuracy: {val_accuracy:.2f}% | "
             f"Time: {val_time:.2f}s \n"
             f"Total time epoch {epoch+1}: {epoch_time + val_time:.2f}s \n"
             f"====================\n"
         )
         print(
             f"Validation Loss: {val_loss:.4f} | "
-            f"Validation Accuracy: {val_accuracy:.2f}% | "
             f"Time: {val_time:.2f}s \n\n"
             f"Total time epoch {epoch+1}: {epoch_time + val_time:.2f}s \n\n"
             f"====================\n"
@@ -300,16 +275,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
             torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_loss.pt"))
             best_val_loss = val_loss
 
-        if val_accuracy > best_val_accuracy:
-            # Save the model checkpoint
-            checkpoint = {
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-            }
-            torch.save(checkpoint, os.path.join(chkpt_dir, f"best_val_accuracy.pt"))
-            best_val_accuracy = val_accuracy
-
          # Save the last model checkpoint
         checkpoint = {
             "epoch": epoch,
@@ -323,6 +288,6 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
     logger.success("Finished Training: Youpi!")
     logger.info(f"--- Best validation loss: {best_val_loss}")
-    logger.info(f"--- Best validation accuracy: {best_val_accuracy}")
 
     wandb.finish()
+

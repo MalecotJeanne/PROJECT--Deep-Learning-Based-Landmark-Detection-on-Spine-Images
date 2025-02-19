@@ -34,7 +34,7 @@ parser.add_argument(
 parser.add_argument(
     "-m", "--model_dir", default="None", type=str, help="path to the model checkpoint"
 )
-parser.add_argument("--model", choices=["hrnet", "unet", "unet_base"], help="model to use")
+parser.add_argument("--model", choices=["hrnet", "unet", "unet_base", "dynunet"], help="model to use")
 parser.add_argument("--gpu_devices", default="1,2", type=str, help="gpu devices")
 
 args = parser.parse_args()
@@ -107,14 +107,14 @@ def main():
     ])
     dataset = Dataset(data=data_dict, transform=transforms)
 
-    # save the dataset images
-    dataset_dir = os.path.join(results_dir, "dataset_images")
-    if not os.path.exists(dataset_dir):
-        os.makedirs(dataset_dir)
+    # # save the dataset images
+    # dataset_dir = os.path.join(results_dir, "dataset_images")
+    # if not os.path.exists(dataset_dir):
+    #     os.makedirs(dataset_dir)
         
-    logger.info("Saving dataset images...")    
-    save_dataset(dataset, dataset_dir, "transformed")
-    logger.success("Dataset images saved successfully!")
+    # logger.info("Saving dataset images...")    
+    # save_dataset(dataset, dataset_dir, "transformed")
+    # logger.success("Dataset images saved successfully!")
 
     # Load the model
 

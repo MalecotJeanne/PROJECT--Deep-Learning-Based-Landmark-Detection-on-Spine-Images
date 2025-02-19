@@ -18,6 +18,8 @@ def pick_criterion(name):
     supported_criterion = True
     if name == "mse" or name == "MSE":
         criterion = torch.nn.MSELoss()
+    elif name.lower() == "mse_weight" or name.lower() == "mseweight":
+        criterion = MseWight()
     elif name == "distance" or name == "DistanceLoss":
         criterion = DistanceLoss()
     elif (
@@ -74,6 +76,17 @@ def pick_accuracy(name):
 
 
 # Loss functions
+
+class MseWight(nn.Module):
+    def __init__(self):
+        super(MseWight, self).__init__()
+    def forward(self, pred, gt):
+        criterion = nn.MSELoss(reduction='none')
+        loss = criterion(pred, gt)
+        ratio = torch.pow(50, gt)
+        loss = torch.mul(loss, ratio)
+        loss = torch.mean(loss)
+        return loss
 
 class DistanceLoss(nn.Module):
     def __init__(self):
@@ -170,7 +183,7 @@ class NormalizedMeanError:
         return -normalized_distances.mean().item()
 
 class PercentageOfCorrectKeypoints:
-    def __init__(self, normalizing_factor=1.0, threshold=3):
+    def __init__(self, normalizing_factor=1.0, threshold=10):
         """
         PercentageOfCorrectKeypoints (PCK) accuracy metric.
         args:

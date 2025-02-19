@@ -7,9 +7,9 @@ import torch
 import einops
 
 import torch.nn.functional as F
-from monai.transforms import Compose, EnsureChannelFirstd, InvertibleTransform, ScaleIntensityd, RandBiasFieldd, RandGaussianNoised, RandAdjustContrastd, RandGaussianSmoothd, RandHistogramShiftd, HistogramNormalized
+from monai.transforms import Compose, EnsureChannelFirstd, InvertibleTransform, ScaleIntensityd, RandBiasFieldd, RandGaussianNoised, RandAdjustContrastd, RandGaussianSmoothd, RandHistogramShiftd, HistogramNormalized, Resized
 from monai.transforms.spatial.functional import resize
-import numpy as np
+import numpy as np 
 
 import cv2
 
@@ -22,11 +22,6 @@ def training_transforms(transforms_dict):
         [   
             # --- shape ---
             EnsureChannelFirstd(keys=["image"]),   
-            PadWithLandmarksd(
-                padding_ratio=tuple(transforms_dict["padding"]["padding_ratio"]),
-                keys=["image", "landmarks"],
-                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
-            ),
             ResizeWithLandmarksd(
                 spatial_size=tuple(transforms_dict["resizing"]["spatial_size"]),
                 mode=transforms_dict["resizing"]["interpolation"],
@@ -47,7 +42,6 @@ def training_transforms(transforms_dict):
         ]
     )
 
-
 def testing_transforms(transforms_dict):
     """
     Define the testing transforms.
@@ -57,11 +51,6 @@ def testing_transforms(transforms_dict):
             EnsureChannelFirstd(keys=["image"]),
             ClaheNormalizationd(keys=["image"]),
             # HistogramNormalized(keys=["image"]),
-            PadWithLandmarksd(
-                padding_ratio=tuple(transforms_dict["padding"]["padding_ratio"]),
-                keys=["image", "landmarks"],
-                meta_keys=["image_meta_dict", "landmarks_meta_dict"],
-            ),
             ResizeWithLandmarksd(
                 spatial_size=transforms_dict["resizing"]["spatial_size"],
                 mode=transforms_dict["resizing"]["interpolation"],
@@ -98,6 +87,62 @@ class ClaheNormalizationd(InvertibleTransform):
     def inverse(self, data):
         return data
     
+class Padded(InvertibleTransform):
+    def __init__(
+        self,
+        padding_ratio,
+        mode="constant",
+        constant_values=0,
+        keys=["image", "masks"],
+        meta_keys=["image_meta_dict", "masks_meta_dict"],
+    ):
+        
+        self.padding_ratio = padding_ratio
+        self.mode = mode
+        self.constant_values = constant_values
+        self.keys = keys
+        self.meta_keys = meta_keys
+
+    def __call__(self, data):
+
+        image = data[self.keys[0]]
+        masks = data[self.keys[1]]
+        original_height, original_width = image.shape[-2], image.shape[-1]
+
+        padding = (
+            int((original_width * self.padding_ratio[0])//2),
+            int((original_width * self.padding_ratio[0])//2),
+            int((original_height * self.padding_ratio[1])//2),
+            int((original_height * self.padding_ratio[1])//2),
+        )
+
+        padded_image = F.pad(image, padding, mode=self.mode, value=self.constant_values)
+        padded_masks = F.pad(masks, padding, mode=self.mode, value=self.constant_values)
+
+        data[self.keys[0]] = padded_image
+        data[self.keys[1]] = padded_masks
+
+        data[self.meta_keys[0]].update({"padding": padding})
+
+        return data
+    
+    def inverse(self, data):
+
+        padding = data[self.meta_keys[0]]["padding"]
+
+        image = data[self.keys[0]]
+        masks = data[self.keys[1]]
+
+        inverted_image = image[:, padding[2] : -padding[3], padding[0] : -padding[1]]
+        inverted_masks = masks[:, padding[2] : -padding[3], padding[0] : -padding[1]]
+
+        data[self.keys[0]] = inverted_image
+        data[self.keys[1]] = inverted_masks
+
+        return data
+        
+
+
 class PadWithLandmarksd(InvertibleTransform):
     """
     Pad the image and the landmarks accordingly, using the Pad transform from MONAI.

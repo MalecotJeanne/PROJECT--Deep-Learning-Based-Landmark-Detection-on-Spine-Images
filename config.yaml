@@ -10,10 +10,9 @@ train:
     type: step_lr
     step_size: 30
     gamma: 0.1
-  criterion: MSE
+  criterion: mseweight
   loss_method: heatmap
   gt_heatmap:
-    
     ld_ratio: 0.02
     context_ratio: 0.5
   accuracy: PCK
@@ -27,18 +26,36 @@ model:
   unet:
     spatial_dims: 2
     in_channels: 1
-    out_channels: 4
-    channels: [32, 64, 128, 256]
-    strides: [2, 2, 2]
+    out_channels: 6
+    channels: [32, 64, 128, 256, 512]
+    strides: [2, 2, 2, 2]
     kernel_size: 3
+    norm: batch
+    num_res_units: 2
+  dynunet:
+    spatial_dims: 2
+    in_channels: 1
+    out_channels: 6
+    filters: [32, 64, 128, 256, 512]  #  =channels
+    strides: [1, 2, 2, 2, 2]  #stride 1 for first level
+    kernel_sizes:
+      - [3, 3]
+      - [3, 3]
+      - [3, 3]
+      - [3, 3]
+      - [3, 3]  
+    upsample_kernels: [2, 2, 2, 2]  
+    deep_supervision: False  
+    norm: BATCH
+    res_block: True  
   hrnet:
     spatial_dims: 2
     in_channels: 1
-    out_channels: 68
+    out_channels: 6
     channels: [32, 64, 128, 256]
     n_blocks: 4
     kernel_size: 3
     dropout: 0.3
   unet_base:
     in_channels: 1
-    out_channels: 4
+    out_channels: 6

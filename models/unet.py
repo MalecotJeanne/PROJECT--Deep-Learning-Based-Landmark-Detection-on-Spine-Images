@@ -22,6 +22,9 @@ class UNet(UNet):
             channels=config["channels"],
             strides=config["strides"],
             kernel_size=config["kernel_size"],
+            norm=config["norm"],
+            num_res_units=config["num_res_units"],
+            bias=False,
         )
 
     def forward(self, x):

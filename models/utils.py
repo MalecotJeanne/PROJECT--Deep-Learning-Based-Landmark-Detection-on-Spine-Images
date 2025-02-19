@@ -81,6 +81,18 @@ def ld2hm(landmarks, spatial_size=(512, 1024), n_channels = 68, gt_infos = {"ld_
     h, w = spatial_size
     
     heatmaps = np.zeros((batch_size, n_channels, h, w))
+    add_center = False
+    add_top_bottom = False
+
+    #if n_channels is 5, we add the centers of the vertebraes
+    if n_channels == 5:
+        n_channels = 4
+        add_center = True
+
+    if n_channels == 6:
+        n_channels = 4
+        add_center = True
+        add_top_bottom = True
 
     for batch in range(batch_size):
         for ld in range(n_landmarks):
@@ -98,42 +110,41 @@ def ld2hm(landmarks, spatial_size=(512, 1024), n_channels = 68, gt_infos = {"ld_
             heatmap = np.exp(-((xx - x) ** 2 + (yy - y) ** 2) / (2 * kernel_size**2)) + alpha*context
 
             heatmaps[batch, ld%n_channels] += heatmap
-            
+        
         for i in range (n_channels):
             heatmaps[batch, i] = heatmaps[batch, i] / np.max(heatmaps[batch, i])
-            
+
+        if add_center:
+            center_ld = []
+            for i in range(0, n_landmarks, 4):
+                y_center = int((landmarks[batch, i][0] + landmarks[batch, i+1][0] + landmarks[batch, i+2][0] + landmarks[batch, i+3][0]) / 4)
+                x_center = int((landmarks[batch, i][1] + landmarks[batch, i+1][1] + landmarks[batch, i+2][1] + landmarks[batch, i+3][1]) / 4)
+                center_ld.append((y_center, x_center))
+
+                heatmap = np.zeros((h, w))
+                xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+
+                heatmap = np.exp(-((xx - x_center) ** 2 + (yy - y_center) ** 2) / (2 * kernel_size**2))
+                heatmaps[batch, 4] += heatmap
+
+            heatmaps[batch, 4] = heatmaps[batch, 4] / np.max(heatmaps[batch, 4]) 
+
+            if add_top_bottom:
+                top_center = min(center_ld, key=lambda x: x[1])
+                bottom_center = max(center_ld, key=lambda x: x[1])
+
+                heatmap = np.zeros((h, w))
+                xx, yy = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+
+                heatmap = np.exp(-((xx - top_center[1]) ** 2 + (yy - top_center[0]) ** 2) / (2 * kernel_size**2))
+                heatmap += np.exp(-((xx - bottom_center[1]) ** 2 + (yy - bottom_center[0]) ** 2) / (2 * kernel_size**2))
+                heatmaps[batch, 5] += heatmap
+
+            heatmaps[batch, 5] = heatmaps[batch, 5] / np.max(heatmaps[batch, 5])
+     
     # convert heatmaps to tensor
     heatmaps = torch.tensor(
         heatmaps, dtype=torch.float32, device=device, requires_grad=True
     )
     return heatmaps
 
-def make_landmarks(outputs, device="cpu"):
-    """
-    Convert the outputs to landmarks, taking the argmax.
-    This function is used for the evaluation of the model, not for the backpropagation (discontinuous).
-    """
-    outputs = outputs.cpu().detach().numpy()
-    batch_size, n_channels, h, w = outputs.shape
-    n_landmarks = 68
-
-    landmarks = np.zeros((batch_size, n_landmarks, 2))
-
-    for i in range(batch_size):
-        for j in range(n_channels):
-            
-            heatmap = outputs[i, j]
-            #smooth the heatmap
-            smoothed_heatmap = gaussian_filter(heatmap, sigma=1)
-            outputs[i, j] = smoothed_heatmap
-
-            nb_landmarks_hm = n_landmarks//n_channels
-
-            for k in range(nb_landmarks_hm):
-                flat_index = np.argpartition(heatmap.flatten(), -k-1)[-k-1]
-                y, x = np.unravel_index(flat_index, heatmap.shape)
-                landmarks[i, j * nb_landmarks_hm + k] = np.array([x, y])
-
-
-    landmarks = torch.tensor(landmarks, dtype=torch.float32, device=device)
-    return landmarks

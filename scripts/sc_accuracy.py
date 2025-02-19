@@ -59,7 +59,8 @@ def order_corners(corners):
 
     return ordered_corners
 
-def resize_landmarks(landmarks, image_shape, original_shape = (752, 256)):
+#shape of images in scoliosis: (752, 256)
+def resize_landmarks(landmarks, image_shape, original_shape = (512, 160)):
     """
     Resize the landmarks from the original image shape to the new image shape
     """

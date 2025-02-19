@@ -16,6 +16,8 @@ from tqdm import tqdm
 from scipy.io import loadmat
 
 
+
+
 ### Data loading functions ###
 
 def load_data(path_data, path_labels):
@@ -44,6 +46,30 @@ def load_data(path_data, path_labels):
 
     return dict_data
 
+def load_data_seg(path_data, path_masks):
+    """
+    Load the data and labels from the given paths
+    """
+    # Load the data
+    data = []
+    masks = []
+    names = []
+    for path_img in glob.glob(os.path.join(path_data + "/*.jpg")):
+        names.append(os.path.basename(path_img[:-4]))
+        data.append(path_img)
+        path_mask = os.path.join(path_masks, os.path.basename(path_img))
+        masks.append(path_mask)
+
+    # Check if the data and labels have the same length
+    if len(data) != len(masks):
+        raise ValueError(
+            "Number of data samples and masks do not match"
+        )  
+
+    dict_data = create_dict_seg(data, masks, names)
+
+    return dict_data
+
 
 def create_dict(data, labels, names):
     """
@@ -52,6 +78,15 @@ def create_dict(data, labels, names):
     data_dict = []
     for i in range(len(data)):
         data_dict.append({"image": data[i], "landmarks": torch.Tensor(labels[i]), "image_meta_dict":{"name": names[i]}, "landmarks_meta_dict":{}})
+    return data_dict
+
+def create_dict_seg(data, masks, names):
+    """
+    Create a dictionary with the data and masks suitable for the Monai Dataset class
+    """
+    data_dict = []
+    for i in range(len(data)):
+        data_dict.append({"image": data[i], "masks": masks[i], "image_meta_dict":{"name": names[i]}, "masks_meta_dict":{}})
     return data_dict
 
 def load_labels_mat(dir_list):
@@ -110,15 +145,14 @@ def save_heatmaps(images, save_dir, basename="image", cmap="jet"):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     n_images = len(images)
-    if torch.is_tensor(images):
-        images_copy = images.clone()
-    else:
-        images_copy = np.copy(images)
+    images_copy = images.clone() if torch.is_tensor(images) else np.copy(images)
+
     for i in range(n_images):
         if torch.is_tensor(images_copy[i]):
             image = images_copy[i].detach().cpu().numpy()
         else:
             image = images_copy[i]
+            
         image = normalize_image(image)
         save_path = os.path.join(save_dir, f"{basename}_{i}.jpg")
         if cmap == "jet":
@@ -156,8 +190,15 @@ def save_dataset(dataset, save_dir, suffix):
         c_radius = max(image.shape) // 500
         for landmark in landmarks:
             cv2.circle(
-                image, (int(landmark[0]), int(landmark[1])), c_radius, (0, 255, 0), c_radius*2
+                image, (int(landmark[0]), int(landmark[1])), c_radius, (0, 0, 255), c_radius*2
             )
+        if "gt" in data:
+            gtruths = data["gt"]
+            for gtruth in gtruths:
+                cv2.circle(
+                    image, (int(gtruth[0]), int(gtruth[1])), c_radius, (0, 255, 0), c_radius*2
+                )
+
 
         name = data["image_meta_dict"]["name"]
         save_path = os.path.join(save_dir, f"{name}_{suffix}.jpg")
@@ -183,6 +224,55 @@ def wandb_img(tensor, cmap="jet", caption="image"):
     image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
     return wandb.Image(image)
+
+def show_results(index, bin_heats, np_heats, gt_heatmaps, ground_truths, image_plot, corners, sample_accuracy, heatmap_dir):
+
+    cmap = plt.get_cmap('gist_rainbow')  
+    colors = [cmap(index / (17 - 1)) for index in range(17)]
+    titles_hm = ["Top Left Corners", "Top Right Corners", "Bottom Right Corners", "Bottom Left Corners", "Centers", "Top/Bottom Centers"]
+    
+
+    fig, axes = plt.subplots(1, 4, figsize=(16, 10))
+    fig.subplots_adjust(wspace=0.2)
+
+    # First subplot: Original image with heatmap overlay
+    alpha_mask = bin_heats[index] * 0.3
+    axes[0].imshow(image_plot[0], cmap='gray')
+    axes[0].imshow(np_heats[:, :, index], cmap='jet', alpha=alpha_mask)
+    axes[0].axis('off')
+    axes[0].set_title(f"Input image with predictions")
+
+    # Second subplot: Ground truth heatmap
+    axes[1].imshow(gt_heatmaps[0, index, :, :], cmap='jet')
+    axes[1].axis('off')
+    axes[1].set_title(f"Ground truth heatmap")
+
+    # Third subplot: Heatmap only
+    axes[2].imshow(np_heats[:, :, index], cmap='jet')
+    axes[2].axis('off')
+    axes[2].set_title(f"Predicted heatmap")
+
+    # Fourth subplot: Binary heatmap with landmarks
+    axes[3].imshow(bin_heats[index], cmap="gray")
+    for idx, landmark in enumerate(ground_truths[0]):
+        if idx % 4 == index:
+            axes[3].scatter(landmark[0], landmark[1], color=colors[idx//4], s=3)
+            circle = plt.Circle((landmark[0], landmark[1]), 10, color=colors[idx//4], fill=False, linestyle='--')
+            axes[3].add_patch(circle)
+
+            corner = corners[idx]
+            axes[3].scatter(corner[0], corner[1], color=colors[idx//4], s=15, marker='x')
+
+    axes[3].axis('off')
+    axes[3].set_title(f"Binary heatmap with predicted and true landmarks")
+
+    # Add accuracy text centered at the bottom
+    fig.text(0.5, 0.02, f"Results for {titles_hm[index]}", ha='center', fontsize=12, fontweight='bold')
+    fig.text(0.5, 0.05, f"Total Accuracy: {sample_accuracy:.2f}%", ha='center', fontsize=10)
+    plt.savefig(os.path.join(heatmap_dir, f"heatmap_{index+1}.png"))
+    plt.close(fig)
+
+
 
 def normalize_image(image): 
     """

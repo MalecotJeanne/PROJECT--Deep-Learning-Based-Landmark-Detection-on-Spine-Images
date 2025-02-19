@@ -38,7 +38,8 @@ parser.add_argument(
 parser.add_argument(
     "-config", "--config_dir", default="config.yaml", type=str, help="path to the config file"
 )
-parser.add_argument("--model", choices=["hrnet", "unet", "unet_base"], help="model to use")
+parser.add_argument("-m", "--model", choices=["hrnet", "unet", "unet_base", "dynunet"], help="model to use")
+parser.add_argument("--save_dataset", default=False, help="save the dataset images")
 parser.add_argument("--gpu_devices", default="1,2", type=str, help="gpu devices")
 
 args = parser.parse_args()
@@ -114,14 +115,15 @@ def main():
     ])
     dataset = Dataset(data=data_dict, transform=transforms)
 
-    # save the dataset images
-    dataset_dir = os.path.join(results_dir, "dataset_images")
-    if not os.path.exists(dataset_dir):
-        os.makedirs(dataset_dir)
+    if args.save_dataset:
+        # save the dataset images
+        dataset_dir = os.path.join(results_dir, "dataset_images")
+        if not os.path.exists(dataset_dir):
+            os.makedirs(dataset_dir)
 
-    logger.info("Saving dataset images...")    
-    save_dataset(dataset, dataset_dir, "transformed")
-    logger.success("Dataset images saved successfully!")
+        logger.info("Saving dataset images...")    
+        save_dataset(dataset, dataset_dir, "transformed")
+        logger.success("Dataset images saved successfully!")
 
     # Load the model
     model = init_model(args.model, config["model"][args.model])

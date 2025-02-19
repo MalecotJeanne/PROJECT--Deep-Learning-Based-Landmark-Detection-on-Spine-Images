@@ -8,3 +8,5 @@ slurms/
 wandb/
 old/
 test_results/
+temp/
+bounding_boxes/
