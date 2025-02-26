@@ -107,14 +107,14 @@ def main():
     ])
     dataset = Dataset(data=data_dict, transform=transforms)
 
-    # # save the dataset images
-    # dataset_dir = os.path.join(results_dir, "dataset_images")
-    # if not os.path.exists(dataset_dir):
-    #     os.makedirs(dataset_dir)
+    # save the dataset images
+    dataset_dir = os.path.join(results_dir, "dataset_images")
+    if not os.path.exists(dataset_dir):
+        os.makedirs(dataset_dir)
         
-    # logger.info("Saving dataset images...")    
-    # save_dataset(dataset, dataset_dir, "transformed")
-    # logger.success("Dataset images saved successfully!")
+    logger.info("Saving dataset images...")    
+    save_dataset(dataset, dataset_dir, "transformed")
+    logger.success("Dataset images saved successfully!")
 
     # Load the model
 

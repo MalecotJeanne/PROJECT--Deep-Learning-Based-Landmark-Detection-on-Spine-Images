@@ -21,13 +21,13 @@ from transforms import training_transforms, testing_transforms, ResizeWithLandma
 parser = argparse.ArgumentParser(description="Script to test a dataset.")
 
 parser.add_argument(
-    "--data_dir", default="boostnet_labeldata/", type=str, help="data path"
+    "--data_dir", default="Ressources/boostnet_labeldata/", type=str, help="data path"
 )
 parser.add_argument(
     "--config_dir", default="config.yaml", type=str, help="path to the config file"
 )
 parser.add_argument(
-    "--save_dir", default="dataset/", type=str, help="path to save the images"
+    "--save_dir", default="CLAHE/2_8-8", type=str, help="path to save the images"
 )
 parser.add_argument(
     "--phase",
@@ -37,7 +37,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--test_inverse",
-    default=True,
+    default=False,
     type=bool,
     help="to test the inverse transformations",
 )
@@ -87,7 +87,7 @@ def main():
 
     dataset = Dataset(data=data_dict, transform=transforms)
 
-    save_dataset(dataset, save_dir, "transformed")
+    save_dataset(dataset, save_dir, "transformed", show_landmarks=False)
 
     if args.test_inverse is True:
         inversed_dataset = []

@@ -30,11 +30,10 @@ def training_transforms(transforms_dict):
             ),   
             # --- data augmentation ---
                 
-            # RandBiasFieldd(keys=["image"], prob=0.5, coeff_range=(0.1,0.3)),
-            # RandGaussianNoised(keys=["image"], prob=0.5, mean=0.0, std=0.1),
-            # RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5, 2.0)),
-            # RandGaussianSmoothd(keys=["image"], prob=0.5, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
-            # RandHistogramShiftd(keys=["image"], prob=0.5, num_control_points=(20, 30)),
+            RandGaussianNoised(keys=["image"], prob=0.5, mean=0.0, std=0.1),
+            RandAdjustContrastd(keys=["image"], prob=0.5, gamma=(0.5, 2.0)),
+            RandGaussianSmoothd(keys=["image"], prob=0.5, sigma_x=(0.25, 1.5), sigma_y=(0.25, 1.5)),
+            RandHistogramShiftd(keys=["image"], prob=0.5, num_control_points=(20, 30)),
             
             # --- normalization ---
             ClaheNormalizationd(keys=["image"]),
@@ -69,7 +68,7 @@ class ClaheNormalizationd(InvertibleTransform):
     def __init__(
         self,
         keys=["image"],
-        clip_limit=2.0,
+        clip_limit=4.0,
         tile_grid_size=(8, 8),
     ):
         self.keys = keys

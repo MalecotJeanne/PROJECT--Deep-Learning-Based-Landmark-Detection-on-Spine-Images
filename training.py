@@ -216,7 +216,7 @@ def train_model(dataset, model, chkpt_dir, results_dir, config, device, log_path
 
                 outputs = model(inputs)
                 outputs_, gtruths_ = make_same_type(outputs, landmarks, loss_method, config['train']['gt_heatmap'], device)
-
+            
                 #save heatmaps every 10 epochs
                 if epoch % 10 == 0:
                     for b in range(len(outputs)):

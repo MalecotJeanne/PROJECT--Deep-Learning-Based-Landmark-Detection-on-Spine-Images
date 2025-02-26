@@ -6,7 +6,6 @@ Author: Jeanne Malécot
 import torch
 import torch.nn as nn   
 import numpy as np
-from monai.losses import FocalLoss
 from torch.nn import functional as F
 
 def pick_criterion(name):
@@ -20,14 +19,6 @@ def pick_criterion(name):
         criterion = torch.nn.MSELoss()
     elif name.lower() == "mse_weight" or name.lower() == "mseweight":
         criterion = MseWight()
-    elif name == "distance" or name == "DistanceLoss":
-        criterion = DistanceLoss()
-    elif (
-        name == "adaptive_wing"
-        or name == "AdaptiveWing"
-        or name == "AdapWingLoss"
-    ):
-        criterion = AdaptiveWingLoss()
     elif name == "l1" or name == "L1":
         criterion = torch.nn.L1Loss()
     elif (
@@ -42,12 +33,6 @@ def pick_criterion(name):
         or name == "BCE"
     ):
         criterion = torch.nn.BCELoss()
-    elif (
-        name == "focal"
-        or name == "FocalLoss"
-        or name == "Focal"
-    ):
-        criterion = FocalLoss(gamma = 4.0, reduction ="mean")
     elif name == "kld" or name == "KLD" or name =="KLLoss":
         criterion = KLDivergenceLoss()
     elif name == "mixed" or name == "MixedLoss":
@@ -87,52 +72,6 @@ class MseWight(nn.Module):
         loss = torch.mul(loss, ratio)
         loss = torch.mean(loss)
         return loss
-
-class DistanceLoss(nn.Module):
-    def __init__(self):
-        super(DistanceLoss, self).__init__()
-
-    def forward(self, pred, target):
-        return torch.mean(torch.abs(pred - target))
-    
-class AdaptiveWingLoss(nn.Module):
-    """
-    Adaptation of the Adaptive Wing Loss mentionned in the paper:
-    "Adaptive Wing Loss for Robust Face Alignment via Heatmap Regression" - Xinyao Wang, Liefeng Bo,
-    Li Fuxin, Oregon State University, JD Digits
-    """
-
-    def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
-        """
-        The parameters are initialized as in the paper
-        """
-        super(AdaptiveWingLoss, self).__init__()
-        self.omega = omega
-        self.theta = theta
-        self.epsilon = epsilon
-        self.alpha = alpha
-
-    def forward(self, pred, target):
-        y = target
-        y_hat = pred
-        delta_y = (y - y_hat).abs()
-        A = (
-            self.omega
-            * (1 / (1 + (self.theta / self.epsilon) ** (self.alpha - y)))
-            * (self.alpha - y)
-            * ((self.theta / self.epsilon) ** (self.alpha - y - 1))
-            * (1 / self.epsilon)
-        )
-        C = self.theta * A - self.omega * torch.log(
-            1 + (self.theta / self.epsilon) ** (self.alpha - y)
-        )
-
-        if delta_y < self.theta:
-            loss = self.omega * torch.log(1 + (delta_y / self.epsilon) ** (self.alpha-y))
-        else:
-            loss = A * delta_y - C
-
-        return loss 
 
 class KLDivergenceLoss(nn.Module):
     def __init__(self):
@@ -177,10 +116,20 @@ class NormalizedMeanError:
         returns:
             nme: float, average normalized mean error.
         """
+        if isinstance(predicted, np.ndarray):
+            predicted = torch.from_numpy(predicted)
+        if isinstance(ground_truth, np.ndarray):
+            ground_truth = torch.from_numpy(ground_truth)
+
         distances = torch.linalg.norm(predicted - ground_truth, dim=-1) 
         normalized_distances = distances / self.normalizing_factor  # Shape: (B, N)
 
-        return -normalized_distances.mean().item()
+        invalid_mask = (predicted[..., 0] == -1) & (predicted[..., 1] == -1)
+        normalized_distances[invalid_mask] = -1
+
+        normalized_distances = normalized_distances[normalized_distances != -1]
+
+        return normalized_distances.mean().item()
 
 class PercentageOfCorrectKeypoints:
     def __init__(self, normalizing_factor=1.0, threshold=10):
@@ -203,9 +152,17 @@ class PercentageOfCorrectKeypoints:
         returns:
             pck: float, percentage of correct predictions.
         """
+        if isinstance(predicted, np.ndarray):
+            predicted = torch.from_numpy(predicted)
+        if isinstance(ground_truth, np.ndarray):
+            ground_truth = torch.from_numpy(ground_truth)
+
         distances = torch.linalg.norm(predicted - ground_truth, dim=-1)  
         normalized_distances = distances / self.normalizing_factor  
-        
+
         correct_keypoints = (normalized_distances < self.threshold).float() 
+
+        invalid_mask = (predicted[..., 0] == -1) & (predicted[..., 1] == -1)
+        correct_keypoints[invalid_mask] = 0 
        
         return correct_keypoints.mean().item() * 100  
